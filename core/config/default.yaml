@@ -53,6 +53,7 @@ detector:
    keypoint_nms: 0.45
 
 pose:
+   max_reproj_error_px: 0.  # 0 = diagnostic only; select a gate using labelled data
    optimize_yaw: 1
    armor_pitch_deg: 15.
    yaw_search_range_deg: 85.

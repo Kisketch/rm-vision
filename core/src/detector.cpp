@@ -120,6 +120,13 @@ Detector::Detector(const DetectorConfig& cfg)
     if (cfg_.backend == "onnx") keypoint_ = std::make_unique<KeypointDetector>(cfg_);
 }
 
+void Detector::setConfig(const DetectorConfig& cfg) {
+    // Rebuild both backends: classifier thresholds/assets and ONNX settings are
+    // owned by their respective objects, rather than read from cfg_ per frame.
+    Detector replacement(cfg);
+    *this = std::move(replacement);
+}
+
 std::vector<Light> Detector::findLights(const cv::Mat& bgr, cv::Mat& mask) const {
     return findLightsIn(bgr, {0, 0}, mask);
 }

@@ -58,8 +58,11 @@ public:
     std::vector<ArmorDetection> detect(const cv::Mat& bgr, const std::vector<cv::Rect>& windows,
                                        DetectorDebug* debug = nullptr);
 
-    void setEnemyColor(Color c) { cfg_.enemy_color = c; }
-    void setConfig(const DetectorConfig& cfg) { cfg_ = cfg; }
+    void setEnemyColor(Color c) {
+        cfg_.enemy_color = c;
+        if (keypoint_) keypoint_->setEnemyColor(c);
+    }
+    void setConfig(const DetectorConfig& cfg);
 
     const DetectorConfig& config() const { return cfg_; }
     // True when the ONNX keypoint backend is configured AND its model

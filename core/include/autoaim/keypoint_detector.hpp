@@ -40,7 +40,7 @@ Letterbox letterboxFor(int img_w, int img_h, int input_size);
 // tensors, without a trained model.
 std::vector<KeypointCandidate> parseKeypointOutput(const cv::Mat& output, int num_classes,
                                                    float conf_thr, float nms_thr, int input_size,
-                                                   int img_w, int img_h);
+                                                   int img_w, int img_h, float min_keypoint_conf = 0.25f);
 
 // Order 4 keypoints as the ArmorDetection contract requires:
 // 0 = left bottom, 1 = left top, 2 = right top, 3 = right bottom.
@@ -57,6 +57,7 @@ ArmorDetection candidateToArmor(const KeypointCandidate& c, const DetectorConfig
 class KeypointDetector {
 public:
     explicit KeypointDetector(const DetectorConfig& cfg);
+    void setEnemyColor(Color c) { cfg_.enemy_color = c; }
     bool ok() const { return !net_.empty(); }
     std::vector<ArmorDetection> detect(const cv::Mat& bgr);
 

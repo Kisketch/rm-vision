@@ -21,6 +21,7 @@
 #include <opencv2/core.hpp>
 
 #include <string>
+#include <limits>
 #include <vector>
 
 #include "autoaim/config.hpp"
@@ -31,6 +32,16 @@ namespace autoaim {
 
 // TrackState and toString(TrackState) live in types.hpp (shared with the
 // TargetState snapshot types).
+
+struct AssociationDiagnostic {
+    int observation = -1, armor = -1;
+    const char* reason = "other_identity";
+    int distance_pass = 0, geometry_pass = 0;
+    double nearest_distance = std::numeric_limits<double>::infinity();
+    double nearest_yaw = std::numeric_limits<double>::infinity();
+    double best_score = std::numeric_limits<double>::infinity();
+    double distance_gate = 0, yaw_gate = 0;
+};
 
 class RobotTracker {
 public:
@@ -71,6 +82,12 @@ public:
     TargetState targetState(double t) const;
     const TrackerConfig& config() const { return cfg_; }
 
+    // Opt-in to avoid allocating per-observation logs on the robot hot path.
+    void setDiagnosticsEnabled(bool enabled) { diagnostics_enabled_ = enabled; association_diagnostics.clear(); }
+    std::vector<AssociationDiagnostic> association_diagnostics;
+    const char* diagnostic_event = "none";
+    int reinitialized_observation = -1;
+
     // diagnostics of the last update
     int matched_count = 0;
     double last_nis = 0;
@@ -101,6 +118,7 @@ private:
     // Gate widening when frames are far apart (dropped frames, lower fps):
     // gates are tuned for 40 ms, a 120 ms gap needs ~3x the radius.
     double match_dt_scale_ = 1.0;
+    bool diagnostics_enabled_ = false;
 };
 
 // 3-plate outpost tracker.  The old sentry pipeline had a separate 10-state

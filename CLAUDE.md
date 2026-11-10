@@ -5,8 +5,9 @@ RoboMaster 视觉自瞄统一代码仓：步兵/英雄与哨兵共用同一套�
 多目标管理、串口协议与跟踪预测 ROI 作为独立模块挂在核心之上。
 C++17 / CMake / OpenCV 4。规则以 2026 赛季为准，2027 仅作前瞻。
 
-当前基线：main @ `1770016`（2026-11-10 最终审核后），公开仓
-https://github.com/Kisketch/rm-vision ，CI 在 GitHub Actions 上已跑通过。
+当前代码以 `main` 最新提交为准；冻结指标口径见 `BASELINE.md` 与
+`docs/monorepo_migration.md`，离线 N0 复现用 `core/config/video_reference.yaml`。
+公开仓 https://github.com/Kisketch/rm-vision ，CI 见 GitHub Actions。
 旧两仓 rm-autoaim / rm-sentry-integration 已归档只读，**不要再往旧仓推代码**；
 作业仓 rm-armor-detection 与数据仓 rm-videos 不在本仓范围内，**一律不动**。
 

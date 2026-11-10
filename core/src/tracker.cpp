@@ -257,9 +257,23 @@ void RobotTracker::clampState() {
 
 void RobotTracker::update(const FrameObservations& frame) {
     matched_count = 0;
+    diagnostic_event = "update";
+    reinitialized_observation = -1;
+    association_diagnostics.clear();
+    if (diagnostics_enabled_) {
+        association_diagnostics.resize(frame.armors.size());
+        for (int i = 0; i < static_cast<int>(frame.armors.size()); ++i)
+            association_diagnostics[i].observation = i;
+    }
     if (state_ == TrackState::LOST) {
         const int idx = chooseInitialTarget(frame.armors);
-        if (idx >= 0) init(frame.armors[idx], frame.stamp);
+        if (idx >= 0) {
+            init(frame.armors[idx], frame.stamp);
+            diagnostic_event = "initialized";
+            reinitialized_observation = idx;
+        } else diagnostic_event = "waiting_for_observation";
+        if (diagnostics_enabled_)
+            for (auto& d : association_diagnostics) d.reason = d.observation == idx ? "initialized" : "not_selected";
         return;
     }
 
@@ -277,14 +291,24 @@ void RobotTracker::update(const FrameObservations& frame) {
         const auto& o = frame.armors[i];
         if (deviceId(o.det) != id_) continue;
         target_seen = true;
+        auto* diag = diagnostics_enabled_ ? &association_diagnostics[i] : nullptr;
+        const double distance_gate = match_dt_scale_ * cfg_.max_match_distance * std::max(1.0, o.distance / 3.0);
+        const double yaw_gate = match_dt_scale_ * cfg_.max_match_yaw_diff;
+        if (diag) { diag->distance_gate = distance_gate; diag->yaw_gate = yaw_gate; }
         const cv::Matx<double, 4, 4> R = measurementNoise(o);
         for (int k = 0; k < cfg_.armors_num; ++k) {
             const cv::Vec3d pa = armorPosition(x_, k);
             const cv::Vec3d dp = o.position - pa;
             const double dyaw = std::abs(wrapAngle(o.yaw - armorYaw(x_, k)));
-            if (cv::norm(dp) > match_dt_scale_ * cfg_.max_match_distance * std::max(1.0, o.distance / 3.0) ||
-                dyaw > match_dt_scale_ * cfg_.max_match_yaw_diff)
-                continue;
+            const double distance = cv::norm(dp);
+            if (diag) {
+                diag->nearest_distance = std::min(diag->nearest_distance, distance);
+                diag->nearest_yaw = std::min(diag->nearest_yaw, dyaw);
+            }
+            if (distance > distance_gate) continue;
+            if (diag) ++diag->distance_pass;
+            if (dyaw > yaw_gate) continue;
+            if (diag) ++diag->geometry_pass;
             // position-only Mahalanobis distance
             const double phi = armorYaw(x_, k), r = armorRadius(x_, k);
             const int ri = (cfg_.armors_num == 4 && k % 2) ? R2 : R1;
@@ -297,9 +321,20 @@ void RobotTracker::update(const FrameObservations& frame) {
             for (int a = 0; a < 3; ++a)
                 for (int b = 0; b < 3; ++b) S(a, b) += R(a, b);
             const double d2 = (dp.t() * S.inv(cv::DECOMP_CHOLESKY) * dp)(0);
-            pairs.push_back({i, k, d2 + 4.0 * dyaw * dyaw});
+            const double score = d2 + 4.0 * dyaw * dyaw;
+            if (!std::isfinite(score)) continue;
+            if (diag) diag->best_score = std::min(diag->best_score, score);
+            pairs.push_back({i, k, score});
         }
     }
+    if (diagnostics_enabled_)
+        for (auto& d : association_diagnostics) {
+            if (deviceId(frame.armors[d.observation].det) != id_) continue;
+            d.reason = d.distance_pass == 0 ? "distance_gate" :
+                d.geometry_pass == 0 ? "yaw_gate" :
+                !std::isfinite(d.best_score) ? "nonfinite_score" :
+                d.best_score > 40.0 ? "score_gate" : "assignment_conflict";
+        }
     std::sort(pairs.begin(), pairs.end(), [](const Pair& a, const Pair& b) { return a.d2 < b.d2; });
     std::vector<bool> used_obs(frame.armors.size(), false), used_k(cfg_.armors_num, false);
     double nis_sum = 0;
@@ -311,6 +346,11 @@ void RobotTracker::update(const FrameObservations& frame) {
         updateWith(frame.armors[p.obs], p.k, nis_pos);
         nis_sum += nis_pos;
         ++matched_count;
+        if (diagnostics_enabled_) {
+            auto& d = association_diagnostics[p.obs];
+            d.reason = "matched";
+            d.armor = p.k;
+        }
     }
     const bool matched = matched_count > 0;
     if (matched) {
@@ -351,7 +391,11 @@ void RobotTracker::update(const FrameObservations& frame) {
     }
     if (state_ == TrackState::LOST) {
         const int idx = chooseInitialTarget(frame.armors);
-        if (idx >= 0) init(frame.armors[idx], frame.stamp);
+        if (idx >= 0) {
+            init(frame.armors[idx], frame.stamp);
+            diagnostic_event = "reinitialized";
+            reinitialized_observation = idx;
+        }
     }
 }
 

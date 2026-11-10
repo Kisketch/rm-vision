@@ -12,6 +12,7 @@
 #include <opencv2/core.hpp>
 
 #include <vector>
+#include <limits>
 
 #include "autoaim/config.hpp"
 #include "autoaim/types.hpp"
@@ -59,10 +60,17 @@ cv::Matx33d armorRotation(double yaw, double pitch);
 std::array<cv::Vec3d, 4> armorCorners(const cv::Vec3d& center, double yaw, double pitch,
                                       ArmorType type);
 
+struct PoseDiagnostic {
+    const char* status = "not_solved";
+    int candidates = 0, physical_candidates = 0;
+    double fit_reproj_px = std::numeric_limits<double>::quiet_NaN();
+    double final_reproj_px = std::numeric_limits<double>::quiet_NaN();
+};
+
 class PoseSolver {
 public:
     PoseSolver(const CameraModel& camera, const PoseConfig& cfg);
-    bool solve(const ArmorDetection& det, ArmorObservation& out) const;
+    bool solve(const ArmorDetection& det, ArmorObservation& out, PoseDiagnostic* diagnostic = nullptr) const;
     std::vector<ArmorObservation> solveAll(const std::vector<ArmorDetection>& dets) const;
     const CameraModel& camera() const { return camera_; }
 

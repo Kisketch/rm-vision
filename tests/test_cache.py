@@ -50,14 +50,46 @@ def main() -> None:
         assert "detected 12 frames" in run(binary, a, out, "--set", "refine_corners=0")
         assert "loaded 12 frames" in run(binary, a, out, "--set", "refine_corners=0")
 
+        for key, values in {"diff_adaptive": (1, 0), "diff_k": (3, 4),
+                            "diff_min": (30, 35), "diff_max": (100, 110)}.items():
+            for value in values:
+                args = ("--set", f"{key}={value}")
+                assert "detected 12 frames" in run(binary, a, out, *args), key
+                assert "loaded 12 frames" in run(binary, a, out, *args), key
+        # Even without a real pose model, backend settings and asset contents
+        # must invalidate a fallback cache; installing a working model later
+        # must not leave traditional detections masquerading as ONNX results.
+        model = root / "pose.onnx"
+        config = root / "onnx.yml"
+        model.write_bytes(b"not an ONNX model")
+        def write_config(conf: float) -> None:
+            config.write_text(f'%YAML:1.0\n---\ndetector:\n   backend: "onnx"\n'
+                              f'   onnx_path: "{model}"\n   keypoint_min_conf: {conf}\n', encoding="utf-8")
+        write_config(0.25)
+        assert "detected 12 frames" in run(binary, a, out, "--config", str(config))
+        assert "loaded 12 frames" in run(binary, a, out, "--config", str(config))
+        model.write_bytes(b"changed invalid model")
+        assert "detected 12 frames" in run(binary, a, out, "--config", str(config))
+        write_config(0.5)
+        assert "detected 12 frames" in run(binary, a, out, "--config", str(config))
+
+        run(binary, a, out, "--diagnostics")
+        import csv
+        pose_rows = list(csv.DictReader((out / "clip_pose_diagnostics.csv").open()))
+        association_rows = list(csv.DictReader((out / "clip_association.csv").open()))
+        assert len(pose_rows) == 12 and all(r["status"] == "no_detection" for r in pose_rows)
+        assert len(association_rows) == 12 and all(r["reason"] == "no_observation" for r in association_rows)
+
         cache = out / "clip_detections.txt"
         cache.write_text("0 0.000 1\n" + "1 0.040 0\n" * 11, encoding="utf-8")
         assert "detected 12 frames" in run(binary, a, out, "--set", "refine_corners=0")
-        invalid = subprocess.run(
-            [str(binary), str(a), "--out", str(out), "--sweep", "refine_corners=0,1"],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-        assert invalid.returncode != 0 and "changes detections" in invalid.stderr
+        for key in ("refine_corners", "channel_diff_threshold", "diff_adaptive", "diff_k", "diff_min", "diff_max"):
+            invalid = subprocess.run(
+                [str(binary), str(a), "--out", str(out), "--sweep", f"{key}=0,1"],
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            assert invalid.returncode != 0 and "changes detections" in invalid.stderr, key
+
 
     print("cache provenance and corruption checks passed")
 
