@@ -1,0 +1,24 @@
+Camera:
+  exposure_time: 2000
+  camera_matrix: [2399.583734143874, -0.114556032386470, 688.7026376077414, 0, 2398.597221612343, 533.4234008238891, 0, 0, 1]
+  distort_coeffs: [0.002592988512527, 0.048045410117226, 0.293333651684761, 0.0001643665962815789, 0.0001925868649099913]
+  show: 1
+
+Transform:
+  R_camera2gimbal: [0, 0, 1, -1, 0, 0, 0, -1, 0]
+  t_camera2gimbal: [0.10, -0.05, 0]
+
+Planer:
+  predict_time: 0.075
+  max_yaw_acc: 20
+
+Transmit:
+  compensate_pitch: -0.5
+  compensate_yaw: 0.5
+
+Buff:
+  pitch: 9
+  yaw: -0.8
+  compensate_pitch: 9
+  compensate_yaw: -0.8
+

@@ -60,6 +60,9 @@ the sentry apps resolve their config via `SENTRY_ROOT` (`sentry/`).
   on vs off): 890 = 890 observations, 0 frames differ, 192 = 192 valid aim
   commands — identical to the pre-merge sentry repo.
 
+Note: `reports/sim_report.md` was stored as UTF-16LE in rm-autoaim; it is
+transcoded to UTF-8 here (same text) so every file in the repo is UTF-8.
+
 ## Retired
 
 - `tools/check_shared_core.sh` and the `shared-core.yml` CI workflows: the

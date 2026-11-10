@@ -1,0 +1,15 @@
+add_executable(autoaim_tests test_main.cpp)
+target_link_libraries(autoaim_tests PRIVATE autoaim_core)
+add_test(NAME autoaim_tests COMMAND autoaim_tests)
+
+if (BUILD_SENTRY)
+    add_executable(sentry_tests test_sentry.cpp)
+    target_link_libraries(sentry_tests PRIVATE autoaim_sentry)
+    add_test(NAME sentry_tests COMMAND sentry_tests)
+
+    if (UNIX AND NOT APPLE)
+        add_executable(serial_port_tests serial_port_test.cpp)
+        target_link_libraries(serial_port_tests PRIVATE autoaim_sentry util)
+        add_test(NAME serial_port_tests COMMAND serial_port_tests)
+    endif()
+endif()
