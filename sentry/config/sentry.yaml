@@ -59,6 +59,8 @@ tracker:
    lost_time_thres: 0.4
    q_xyz: 1.0
    q_yaw: 3.
+   q_yaw_walk: 0.05
+   q_yaw_adapt: 1
    q_r: 3.0e-3
    q_dz: 1.0e-4
    pixel_noise: 1.0

@@ -273,6 +273,156 @@ static void testTracker() {
                 x[RobotTracker::R1], x[RobotTracker::R2], r);
 }
 
+// Shared synthetic target: a 4-plate robot spinning at a constant rate.
+struct Spinner {
+    double w = 3.0, r = 0.24, yaw0 = 0.2;
+    cv::Vec3d c{5, 0.2, -0.1};
+    FrameObservations frame(double t, int n) const {
+        FrameObservations f;
+        f.frame = n, f.stamp = t;
+        const double los = std::atan2(c[1], c[0]);
+        for (int k = 0; k < 4; ++k) {
+            const double yaw = yaw0 + w * t + kPi / 2 * k;
+            if (std::abs(wrapAngle(yaw - los)) > 1.0) continue;
+            ArmorObservation o;
+            o.position = {c[0] - r * std::cos(yaw), c[1] - r * std::sin(yaw), c[2]};
+            o.distance = cv::norm(o.position);
+            o.yaw = wrapAngle(yaw);
+            o.det.number = "3";
+            o.det.left.length = o.det.right.length = 20;
+            o.image_center_dist = 100;
+            f.armors.push_back(o);
+        }
+        return f;
+    }
+};
+
+static void testTrackerDropoutGrace() {
+    // One frame without a detection is a dropout, not a lost target. With
+    // lost_grace_frames = 0 the track is demoted (the historical rule); with 1
+    // it must stay TRACKING, because demoting it also stops firing and resets
+    // every warm-up counter.
+    const Spinner sp;
+    for (int grace : {0, 1}) {
+        TrackerConfig tc;
+        tc.lost_grace_frames = grace;
+        CameraModel cam{CameraConfig{}};
+        RobotTracker tr(tc, cam);
+        for (int n = 0; n < 80; ++n) tr.update(sp.frame(n / 25.0, n));
+        CHECK(tr.state() == TrackState::TRACKING, "grace %d: state before drop %s", grace,
+              toString(tr.state()));
+        FrameObservations empty;  // no plates at all
+        empty.frame = 80, empty.stamp = 80 / 25.0;
+        tr.update(empty);
+        if (grace == 0)
+            CHECK(tr.state() == TrackState::TEMP_LOST, "grace 0 must demote, got %s", toString(tr.state()));
+        else
+            CHECK(tr.state() == TrackState::TRACKING, "grace 1 must hold, got %s", toString(tr.state()));
+        // A second consecutive dropout exhausts the grace.
+        FrameObservations empty2;
+        empty2.frame = 81, empty2.stamp = 81 / 25.0;
+        tr.update(empty2);
+        CHECK(tr.state() != TrackState::TRACKING, "grace %d: two drops must demote, got %s", grace,
+              toString(tr.state()));
+    }
+}
+
+static void testYawProcessNoiseSplit() {
+    // What q_yaw_walk actually guarantees (measured 2026-11-11):
+    //   1. it is wired: the phase variance over a prediction grows with it;
+    //   2. it does not disturb convergence: omega and the radius still settle.
+    // It is NOT a free lunch. On a noise-free constant-rate target the phase
+    // random walk makes a 0.4 s extrapolation worse (34.7 mm vs 20.1 mm for
+    // q_yaw 1 + walk 0.12 vs q_yaw 3 + walk 0), because injected variance beats
+    // physics when the measurements are clean. It wins on the real videos
+    // (58.0% / 70.4% vs 56.8% / 64.4%), where the phase measurements carry
+    // correlated errors the filter has to absorb. See BASELINE.md section 11.
+    const Spinner sp;
+    CameraModel cam{CameraConfig{}};
+    auto settle = [&](const TrackerConfig& tc) {
+        RobotTracker tr(tc, cam);
+        for (int n = 0; n < 200; ++n) tr.update(sp.frame(n / 25.0, n));
+        return tr;
+    };
+    TrackerConfig base;
+    base.q_yaw_walk = 0.0;
+    TrackerConfig walk = base;
+    walk.q_yaw_walk = 0.12;
+
+    const RobotTracker a = settle(base);
+    const RobotTracker b = settle(walk);
+    const double t = 199 / 25.0;
+    const double va = a.predictCovariance(t + 0.4, true)(RobotTracker::YAW, RobotTracker::YAW);
+    const double vb = b.predictCovariance(t + 0.4, true)(RobotTracker::YAW, RobotTracker::YAW);
+    // The walk must add variance at the rate it is configured for; the exact
+    // difference is not q*horizon because the inflated angle also changes the
+    // gains during the run, so only half of it is required.
+    CHECK(vb > va, "q_yaw_walk must widen the phase variance: %.3g vs %.3g", vb, va);
+    CHECK(vb - va > 0.5 * walk.q_yaw_walk * 0.4, "walk added %.3f rad^2, want > %.3f", vb - va,
+          0.5 * walk.q_yaw_walk * 0.4);
+    for (const auto* tr : {&a, &b}) {
+        const auto& x = tr->x();
+        CHECK(tr->state() == TrackState::TRACKING, "state %s", toString(tr->state()));
+        CHECK(std::abs(x[RobotTracker::W] - sp.w) < 0.2, "omega %f", x[RobotTracker::W]);
+        CHECK(std::abs(x[RobotTracker::R1] - sp.r) < 0.03, "radius %f", x[RobotTracker::R1]);
+    }
+    // Shipping default must keep the historical single-q behaviour.
+    TrackerConfig shipped;
+    CHECK(shipped.q_yaw_walk == 0.0, "q_yaw_walk must default to 0");
+    std::printf("yaw q split: phase var %.3g -> %.3g, omega %.3f, radius %.3f\n", va, vb,
+                b.x()[RobotTracker::W], b.x()[RobotTracker::R1]);
+}
+
+static void testAimerPhaseLead() {
+    // phase_lead_deg rotates the aimed plate about the robot centre and must not
+    // touch the centre-mode aim ray (that ray is not a plate).
+    CameraModel cam{CameraConfig{}};
+    TrackerConfig tc;
+    RobotTracker tr(tc, cam);
+    Spinner sp;
+    sp.w = 0.0;  // static: no side-angle switch lead, identical flight time
+    for (int n = 0; n < 60; ++n) tr.update(sp.frame(n / 25.0, n));
+    CHECK(tr.state() == TrackState::TRACKING, "state %s", toString(tr.state()));
+
+    BallisticConfig bc;
+    Ballistics ball(bc);
+    AimerConfig ac;
+    ac.center_mode_omega = 1e9;  // force armour mode
+    AimerConfig lead = ac;
+    lead.phase_lead_deg = 18.0;
+
+    const double now = 59 / 25.0;
+    const AimCommand a0 = RobotAimer(ac, ball).aim(tr, now);
+    const AimCommand a1 = RobotAimer(lead, ball).aim(tr, now);
+    CHECK(a0.valid && a1.valid, "both commands valid");
+    const auto& x = tr.predict(now + ac.latency + a0.t_fly);
+    const double cx = x[RobotTracker::XC], cy = x[RobotTracker::YC];
+    const double ang0 = std::atan2(a0.aim_point[1] - cy, a0.aim_point[0] - cx);
+    const double ang1 = std::atan2(a1.aim_point[1] - cy, a1.aim_point[0] - cx);
+    const double delta = wrapAngle(ang1 - ang0);
+    CHECK(std::abs(delta - 18.0 * kPi / 180.0) < 0.5 * kPi / 180.0, "lead rotated by %.2f deg, want 18",
+          delta * 180 / kPi);
+    CHECK(std::abs(cv::norm(a0.aim_point - cv::Vec3d(cx, cy, a0.aim_point[2])) -
+                   cv::norm(a1.aim_point - cv::Vec3d(cx, cy, a1.aim_point[2]))) < 1e-6,
+          "lead must preserve the plate radius");
+
+    // Centre mode: the lead must be a no-op, otherwise the ray leaves the centre.
+    // A spinning target is needed because centre mode triggers on |omega|.
+    Spinner spinning;
+    spinning.w = 1.0;
+    RobotTracker tr_spin(tc, cam);
+    for (int n = 0; n < 60; ++n) tr_spin.update(spinning.frame(n / 25.0, n));
+    AimerConfig centre = ac;
+    centre.center_mode_omega = 0.5;
+    AimerConfig centre_lead = centre;
+    centre_lead.phase_lead_deg = 18.0;
+    const AimCommand c0 = RobotAimer(centre, ball).aim(tr_spin, now);
+    const AimCommand c1 = RobotAimer(centre_lead, ball).aim(tr_spin, now);
+    CHECK(c0.valid && c1.valid && c0.center_mode && c1.center_mode, "centre mode active");
+    CHECK(std::abs(wrapAngle(c1.yaw - c0.yaw)) < 1e-9, "centre-mode yaw must ignore the phase lead (%g)",
+          wrapAngle(c1.yaw - c0.yaw));
+}
+
 static void testPoseBuffer() {
     // Gimbal spinning at 3 rad/s (the G-02 reference case), pose samples at
     // 200 Hz like a serial IMU stream, frames queried at in-between times.
@@ -734,6 +884,9 @@ int main() {
     testPoseQuality();
     testAssociationDiagnostics();
     testTracker();
+    testTrackerDropoutGrace();
+    testYawProcessNoiseSplit();
+    testAimerPhaseLead();
     testDeviceId();
     testAimerRates();
     testKeypointDetector();

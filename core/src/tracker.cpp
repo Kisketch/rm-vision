@@ -128,6 +128,7 @@ void RobotTracker::init(const ArmorObservation& obs, double stamp) {
     state_ = TrackState::DETECTING;
     detect_count_ = 0;
     unmatched_with_target_ = 0;
+    unmatched_run_ = 0;
     nis_ema_ = 3.0;
     q_scale_ = 1.0;
 }
@@ -155,7 +156,8 @@ void RobotTracker::transition(double dt, Mat& F, Mat& Q) const {
     addWhiteNoiseAccel(Q, XC, qxyz, dt);
     addWhiteNoiseAccel(Q, YC, qxyz, dt);
     addWhiteNoiseAccel(Q, ZC, qxyz * 0.25, dt);
-    addWhiteNoiseAccel(Q, YAW, cfg_.q_yaw, dt);
+    addWhiteNoiseAccel(Q, YAW, cfg_.q_yaw * (cfg_.q_yaw_adapt ? q_yaw_scale_ : 1.0), dt);
+    Q(YAW, YAW) += cfg_.q_yaw_walk * dt;
     if (cfg_.ca_model > 0) {
         Q(AXC, AXC) += cfg_.q_acc * dt;
         Q(AY, AY) += cfg_.q_acc * dt;
@@ -229,6 +231,8 @@ bool RobotTracker::updateWith(const ArmorObservation& obs, int k, double& nis_po
     const cv::Matx<double, 4, 4> S = H * P_ * H.t() + R;
     const cv::Matx<double, 4, 4> Si = S.inv(cv::DECOMP_CHOLESKY);
     last_nis = (y.t() * Si * y)(0);
+    // Yaw part of the innovation, normalised by its own variance (1 dof).
+    last_nis_yaw = S(3, 3) > 1e-12 ? y[3] * y[3] / S(3, 3) : 1.0;
     {
         cv::Matx33d S3;
         for (int a = 0; a < 3; ++a)
@@ -359,6 +363,10 @@ void RobotTracker::update(const FrameObservations& frame) {
         const double a = cfg_.nis_ema_alpha;
         nis_ema_ = (1 - a) * nis_ema_ + a * (nis_sum / matched_count);
         q_scale_ = std::clamp(nis_ema_ / 3.0, 1.0, std::max(1.0, cfg_.q_adapt_max));
+        // A phase error shows up in the yaw innovation but not in the position
+        // one, so omega gets its own detector.
+        nis_yaw_ema_ = (1 - a) * nis_yaw_ema_ + a * last_nis_yaw;
+        q_yaw_scale_ = std::clamp(nis_yaw_ema_, 1.0, std::max(1.0, cfg_.q_adapt_max));
     }
 
     // State machine (rm_auto_aim)
@@ -371,12 +379,20 @@ void RobotTracker::update(const FrameObservations& frame) {
             }
             break;
         case TrackState::TRACKING:
-            if (!matched) state_ = TrackState::TEMP_LOST;
+            if (!matched) {
+                // One or two frames without a match is a detection dropout, not a
+                // lost target: demoting the track also stops firing and resets
+                // every warm-up counter. lost_grace_frames = 0 keeps the old rule.
+                if (++unmatched_run_ > std::max(0, cfg_.lost_grace_frames)) state_ = TrackState::TEMP_LOST;
+            } else {
+                unmatched_run_ = 0;
+            }
             break;
         case TrackState::TEMP_LOST:
-            if (matched)
+            if (matched) {
                 state_ = TrackState::TRACKING;
-            else if (frame.stamp - last_match_stamp_ > cfg_.lost_time_thres)
+                unmatched_run_ = 0;
+            } else if (frame.stamp - last_match_stamp_ > cfg_.lost_time_thres)
                 state_ = TrackState::LOST;
             break;
         case TrackState::LOST: break;
@@ -599,6 +615,7 @@ void OutpostTracker::transition(double dt, Mat& F, Mat& Q) const {
     addWhiteNoiseAccel(Q, XC, qxyz, dt);
     addWhiteNoiseAccel(Q, YC, qxyz, dt);
     addWhiteNoiseAccel(Q, YAW, cfg_.q_yaw, dt);
+    Q(YAW, YAW) += cfg_.q_yaw_walk * dt;
     for (int k = 0; k < 3; ++k) Q(Z1 + k, Z1 + k) += cfg_.q_outpost_z * dt;
     Q(R, R) += cfg_.q_outpost_r * dt;
 }
@@ -691,6 +708,11 @@ void OutpostTracker::update(const FrameObservations& frame) {
         return;
     }
 
+    // Widen the association gate when frames are far apart (dropped frames): the
+    // gate is tuned for 40 ms, so a 120 ms gap needs ~3x the radius. Compute it
+    // before predictTo(), which moves stamp_ to the frame time.
+    match_dt_scale_ = std::clamp((frame.stamp - stamp_) / 0.04, 1.0, 3.0);
+    if (match_dt_scale_ <= 0) match_dt_scale_ = 1.0;
     predictTo(frame.stamp);
 
     struct Pair {
@@ -708,8 +730,8 @@ void OutpostTracker::update(const FrameObservations& frame) {
             const cv::Vec3d pa = armorPosition(x_, k);
             const cv::Vec3d dp = o.position - pa;
             const double dyaw = std::abs(wrapAngle(o.yaw - armorYaw(x_, k)));
-            if (cv::norm(dp) > cfg_.max_match_distance * std::max(1.0, o.distance / 3.0) ||
-                dyaw > cfg_.max_match_yaw_diff)
+            if (cv::norm(dp) > match_dt_scale_ * cfg_.max_match_distance * std::max(1.0, o.distance / 3.0) ||
+                dyaw > match_dt_scale_ * cfg_.max_match_yaw_diff)
                 continue;
             const auto H = armorJacobian(x_, k);
             cv::Matx33d S = H * P_ * H.t();

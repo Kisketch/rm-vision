@@ -74,6 +74,17 @@ double flightGuess(const Ballistics& ball, const cv::Vec3d& p) {
     return s.ok ? s.t_fly : cv::norm(p) / ball.bulletSpeed();
 }
 
+// Phase lead around the vertical axis through the robot centre, in the same
+// direction as omega. Shifting the plate's phase by delta is the same as
+// rotating (plate - centre) by delta, and this form works for both the tracker
+// state and the TargetState snapshot.
+cv::Vec3d rotateAboutCenter(const cv::Vec3d& p, double cx, double cy, double delta) {
+    if (delta == 0.0) return p;
+    const double dx = p[0] - cx, dy = p[1] - cy;
+    const double c = std::cos(delta), s = std::sin(delta);
+    return {cx + c * dx - s * dy, cy + s * dx + c * dy, p[2]};
+}
+
 // Fixed mechanical zero offsets, applied to the final command before the
 // rate tracker sees it (a constant offset does not change the rates).
 void applyAimOffsets(const AimerConfig& cfg, AimCommand& cmd) {
@@ -132,6 +143,7 @@ AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) const {
     RobotTracker::Vec x = tracker.predict(t0);
     double t_fly = flightGuess(ball_, {x[RobotTracker::XC], x[RobotTracker::YC], x[RobotTracker::ZC]});
     const bool center_mode = std::abs(x[RobotTracker::W]) > cfg_.center_mode_omega;
+    const double lead = cfg_.phase_lead_deg * kPi / 180.0;
     int k = 0;
     double facing = 0;
     for (int it = 0; it < 4; ++it) {
@@ -147,6 +159,10 @@ AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) const {
             target = cv::Vec3d(c[0] / dc * s, c[1] / dc * s, tracker.armorPosition(x, k)[2]);
         } else {
             target = tracker.armorPosition(x, k);
+            // Phase lead belongs to the plate, not to the aim ray: rotating the
+            // centre-mode point about the centre would push it off the centre
+            // direction entirely.
+            if (lead != 0.0) target = rotateAboutCenter(target, x[RobotTracker::XC], x[RobotTracker::YC], lead);
         }
         AimCommand tmp;
         if (!aimAt(ball_, target, tmp)) return cmd;
@@ -270,11 +286,13 @@ AimCommand RobotAimer::aim(const TargetState& target, double now) const {
     if (target.state == TrackState::LOST) {
         last_armor_ = -1;
         last_id_.clear();
+        rate_.reset();
         return cmd;
     }
     if (last_id_ != target.id) {  // new target: hysteresis state is meaningless
         last_armor_ = -1;
         last_id_ = target.id;
+        rate_.reset();  // and so is the previous command's rate baseline (B-01)
     }
     const int previous = last_armor_;
     const double t0 = now + cfg_.latency;
@@ -300,6 +318,10 @@ AimCommand RobotAimer::aim(const TargetState& target, double now) const {
             aim_point = cv::Vec3d(ci[0] / dc * s, ci[1] / dc * s, a.position[2]);
         } else {
             aim_point = a.position;
+            if (cfg_.phase_lead_deg != 0.0) {
+                const cv::Vec3d ci = target.centerAt(t0 + t_fly);
+                aim_point = rotateAboutCenter(aim_point, ci[0], ci[1], cfg_.phase_lead_deg * kPi / 180.0);
+            }
         }
         AimCommand tmp;
         if (!aimAt(ball_, aim_point, tmp)) return cmd;
@@ -332,6 +354,7 @@ AimCommand RobotAimer::aim(const TargetState& target, double now) const {
         cmd.fire = tracking && confident && std::abs(cmd.facing_deg) < cfg_.max_fire_facing_deg;
     }
     applyAimOffsets(cfg_, cmd);
+    rate_.update(cmd.yaw, cmd.pitch, now, cfg_.gimbal_max_rate, cmd.yaw_rate, cmd.pitch_rate);
     return cmd;
 }
 

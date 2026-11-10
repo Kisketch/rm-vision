@@ -68,8 +68,29 @@ tracker:
    max_match_yaw_diff: 1.0
    tracking_thres: 3
    lost_time_thres: 0.4
+   # Consecutive unmatched frames still counted as TRACKING. 0 keeps the old
+   # rule. Raising it buys shots/s at the cost of hit rate (swept: 0 -> 58.2% /
+   # 9.03, 2 -> 56.9% / 9.63 on video 3), so the shipped default stays 0.
+   lost_grace_frames: 0
    q_xyz: 1.0             # tuned (adaptive, see q_adapt_max)
-   q_yaw: 3.             # tuned: visible plateau q_yaw 2-4 (README, tuning log H/J)
+   # Stage K: the yaw process noise is split into an angular-rate term (q_yaw)
+   # and a phase random walk (q_yaw_walk). One parameter could not express the
+   # two requirements at once: the angle must stay responsive (it is what the
+   # aim point uses) while omega must stay stiff (a spinner's rate is nearly
+   # constant, and every rad/s of omega error becomes a whole horizon of phase
+   # error - measured sigma(omega) was 0.69 rad/s, i.e. 15 deg of phase error at
+   # 0.39 s). q_yaw_walk is additive, so q_yaw stays at its frozen value of 3.
+   # Tuned on both configs (default.yaml and the frozen video_reference.yaml):
+   # video 4 +2.5 pp in both, video 3 +0.5 / +0.4 pp. Larger walks help video 4
+   # more but cost video 3 (q_yaw 1 + walk 0.12: 72.3% on video 4 but -2.5 pp on
+   # video 3 under N0), so 0.05 is the cross-config compromise.
+   q_yaw: 3.              # angular-rate diffusion (unchanged)
+   q_yaw_walk: 0.05       # tuned: extra phase random walk (0 = old single-q model)
+   # Let the yaw innovation (not the position one, which is blind to a phase
+   # error) widen q_yaw on a target whose spin rate is genuinely changing.
+   # +0.5 pp on N0 video 3, neutral on video 4, +1.9 pp on the simulator
+   # (the two variable-rate scenarios), where it pays for most of the walk's cost.
+   q_yaw_adapt: 1
    q_r: 3.0e-3           # radius process noise: apparent size changes when approaching
    q_dz: 1.0e-4
    pixel_noise: 1.0
@@ -107,6 +128,10 @@ aimer:
    center_fire_window_deg: 15.
    fire_tolerance_scale: 0.9
    fire_sigma_scale: 0.       # covariance fire gate; off: Q is tuned for response, not calibrated
+   # Extra phase lead on the aimed plate (deg, same sign as omega). 0 = trust the
+   # model: a +/-20 deg sweep is symmetric around -5..0 with the peak at ~57%,
+   # so there is no systematic phase bias to correct on these recordings.
+   phase_lead_deg: 0.
    gimbal_tau: 0.03
    gimbal_max_rate: 12.
 

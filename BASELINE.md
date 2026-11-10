@@ -157,3 +157,48 @@ ALL TESTS PASSED
 
 自动门禁：`python3 tools/regression.py` 会跑两条视频（复用检测缓存）与仿真，
 逐项对比上表，任何一项超出容差即返回非零。当前实测与上表完全一致（+0.0）。
+
+## 11. 两套口径必须分开：default.yaml 与 video_reference.yaml
+
+§10 的数字是用 `core/config/video_reference.yaml`（N0 参考口径：零畸变、
+假定针孔内参）测的，**不是** `core/config/default.yaml`（现用内参 + 非零畸变）。
+两者差 10 pp 左右，用哪套口径必须写在报告里：
+
+| 3.avi / 4.avi robot-EKF | default.yaml | video_reference.yaml (N0) |
+| --- | --- | --- |
+| Stage J（`12409a7`） | 56.8% / 64.4% | **67.5% / 68.6%** |
+| 0.32 s 预测中位 | 15.1 / 13.2 px | 14.3 / 13.3 px |
+| tracking ratio | 0.871 / 0.837 | 0.933 / 0.932 |
+
+两条口径在 Windows / MSVC 14.51 / OpenCV 4.14.0 上都能逐位复现上表，因此
+"换机器导致 10 pp 漂移"的说法不成立——之前的差异全部来自配置口径。
+
+`tools/regression.py` 原来既按 §10 的 N0 数字判定、又用 `default.yaml` 跑，
+自相矛盾，在任何机器上都通不过。现在 `--config` 默认指向
+`core/config/video_reference.yaml`；要与现用配置比较，显式传
+`--config core/config/default.yaml`。
+
+### Stage K 的实测（两套口径都测，不能混读）
+
+`video_reference.yaml` 是冻结口径，本轮**一个字没有改**，所以 N0 的
+`q_yaw_walk` 仍是 0：
+
+| 口径 | 3.avi robot-EKF | 4.avi robot-EKF | 0.32 s 预测中位 |
+| --- | --- | --- | --- |
+| N0 冻结（未改，`walk=0`） | 67.5%（10.6） | 68.6%（10.1） | 14.3 / 13.3 px |
+| N0 + `--set q_yaw_walk=0.05` | **67.5% → 68.4%**（10.67） | **68.6% → 71.1%**（10.54） | 14.3 / 12.4 px |
+| default.yaml（已改为 `walk=0.05`） | **56.8% → 57.3%**（8.8） | **64.4% → 66.9%**（8.8） | 15.1→15.3 / 13.2→12.4 px |
+
+也就是说：现役 `default.yaml` 是净提升，N0 冻结口径零变化（历史数字继续可比），
+而同一个旋钮在 N0 上还能再拿 +0.9 / +2.5 pp，要不要把 `q_yaw_walk` 写进 N0
+属于口径决策，不是技术决策。更大的 `q_yaw_walk` 能把 4.avi 推到 72.3%，但
+N0 的 3.avi 掉 2.5 pp，所以取 0.05 作为跨口径折中。
+
+### 仿真均值是机器相关的
+
+本机未改动的代码量到 74.5%，§10 的 78.1% 在参考机器上；§8 已经写明"只做同机
+同二进制比较，±3 pp"。本机跑门禁需要 `--sim-ref 74.5`。Stage K 让仿真均值从
+74.5% 降到 73.0%（−1.5 pp，容差内）：`walk=0.05` 单独用会到 71.1%，`q_yaw_adapt`
+把"variable spin"和"swing"两个角速度阶跃场景拉回 6.4 / 13.0 pp，补回 1.9 pp。
+`q_yaw_walk` 注入的相位方差在干净合成数据上就是噪声，这一点由
+`tests/test_main.cpp::testYawProcessNoiseSplit` 显式记录。

@@ -91,6 +91,7 @@ public:
     // diagnostics of the last update
     int matched_count = 0;
     double last_nis = 0;
+    double last_nis_yaw = 1.0;
     ArmorType armor_type = ArmorType::SMALL;
 
 private:
@@ -112,9 +113,15 @@ private:
     std::string label_;  // plate number for display (id_ is the deviceId)
     int detect_count_ = 0;
     int unmatched_with_target_ = 0;
+    int unmatched_run_ = 0;  // consecutive unmatched frames inside TRACKING
     double nis_ema_ = 3.0;
     int tracking_frames_ = 0;
     double q_scale_ = 1.0;
+    // Yaw-only innovation statistics. A position innovation cannot see an omega
+    // error (XC/YC/R absorb a mispredicted phase), so the manoeuvre detector that
+    // drives q_xyz is blind to a bad spin rate. This one is not.
+    double nis_yaw_ema_ = 1.0;
+    double q_yaw_scale_ = 1.0;
     // Gate widening when frames are far apart (dropped frames, lower fps):
     // gates are tuned for 40 ms, a 120 ms gap needs ~3x the radius.
     double match_dt_scale_ = 1.0;
@@ -177,6 +184,8 @@ private:
     int unmatched_with_target_ = 0;
     double nis_ema_ = 3.0;
     double q_scale_ = 1.0;
+    // Same gate widening as RobotTracker: a dropped frame is not a bad target.
+    double match_dt_scale_ = 1.0;
 };
 
 // Build a TargetState from either tracker at time t.

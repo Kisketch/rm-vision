@@ -326,10 +326,25 @@ EvalResult evaluate(const Config& cfg, const std::vector<FrameObservations>& obs
             log.cmd = c;
             if (c.valid) {
                 g_robot.step(c.yaw, c.pitch, dt);
+                log.sigma_lat_px = c.distance > 1e-6 ? c.sigma_lat * camera.fx() / c.distance : -1.0;
+                // Where does the aimed point actually sit relative to the real
+                // plate at impact time? Pure prediction error, no gimbal.
+                std::vector<ArmorObservation> plates;
+                cv::Point2d aim_px(-1, -1);
+                if (camera.inFront(c.aim_point) &&
+                    video_judge.platesAt(c.t_impact, robot.id(), plates) && !plates.empty()) {
+                    aim_px = camera.project(c.aim_point);
+                    double dmin = 1e18;
+                    for (const auto& a : plates)
+                        dmin = std::min(dmin, cv::norm(aim_px - cv::Point2d(a.det.center)));
+                    log.aim_err_px = dmin;
+                }
                 if (c.fire && onTarget(g_robot, c, robot.armor_type, scale)) {
                     fireAndJudge(s_robot, judge, g_robot, c, robot.id(), f.frame, cfg.aimer.latency, f.stamp,
                                  &log.shot_rec);
                     log.shot = true;
+                    if (aim_px.x >= 0 && log.shot_rec.result != ShotResult::UNKNOWN)
+                        log.fire_err_px = cv::norm(aim_px - log.shot_rec.impact_px);
                 }
             }
         }

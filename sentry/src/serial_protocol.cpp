@@ -20,9 +20,9 @@ void writeI32(uint8_t* p, int32_t v) {
 
 double wrapPi(double a) {
     constexpr double pi = 3.14159265358979323846;
-    while (a > pi) a -= 2 * pi;
-    while (a <= -pi) a += 2 * pi;
-    return a;
+    // std::remainder is exact for huge inputs and terminates for inf/NaN;
+    // the old while-loop form would spin forever on a non-finite frame.
+    return std::remainder(a, 2 * pi);
 }
 
 }  // namespace

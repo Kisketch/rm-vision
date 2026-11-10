@@ -132,7 +132,8 @@ std::vector<FrameDetections> runDetector(const std::string& video, const Config&
 void writeCsv(const std::string& path, const EvalResult& r) {
     std::ofstream o(path);
     o << "frame,state,xc,yc,zc,vxc,vyc,yaw,w,r1,r2,dz,matched,cmd_valid,center_mode,armor_k,facing_deg,"
-         "cmd_yaw_deg,cmd_pitch_deg,t_fly,gimbal_yaw_deg,gimbal_pitch_deg,shot,shot_result,miss_px,off_u,off_v\n";
+         "cmd_yaw_deg,cmd_pitch_deg,t_fly,gimbal_yaw_deg,gimbal_pitch_deg,shot,shot_result,miss_px,off_u,off_v,"
+         "aim_err_px,fire_err_px,sigma_lat_px\n";
     for (const auto& l : r.log) {
         const auto& x = l.x;
         o << l.frame << ',' << toString(l.state) << ',' << x[0] << ',' << x[2] << ',' << x[4] << ',' << x[1] << ','
@@ -141,7 +142,7 @@ void writeCsv(const std::string& path, const EvalResult& r) {
           << ',' << l.cmd.yaw * 180 / kPi << ',' << l.cmd.pitch * 180 / kPi << ',' << l.cmd.t_fly << ','
           << l.gimbal_yaw * 180 / kPi << ',' << l.gimbal_pitch * 180 / kPi << ',' << l.shot << ','
           << static_cast<int>(l.shot_rec.result) << ',' << l.shot_rec.miss_px << ',' << l.shot_rec.off_u << ','
-          << l.shot_rec.off_v << '\n';
+          << l.shot_rec.off_v << ',' << l.aim_err_px << ',' << l.fire_err_px << ',' << l.sigma_lat_px << '\n';
     }
 }
 

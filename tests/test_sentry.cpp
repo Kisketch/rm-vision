@@ -218,6 +218,15 @@ void testSerialProtocol() {
     CHECK(std::abs(a.pitch + 2.0 * autoaim::kPi / 180.0) < 1e-6);
     CHECK(a.color == 1);
 
+    // Large angles must wrap, not loop: wrapPi used to be a while-loop, which
+    // never terminates for a non-finite value and is O(angle) for big ones.
+    put(3, 2000000000);  // 200000 deg, i.e. 555.6 turns
+    CHECK(sentry::parseAttitude(raw, sizeof(raw), a));
+    const double raw_yaw = 2000000000.0 * autoaim::kPi / 180.0 / 10000.0;
+    CHECK(std::abs(a.yaw - std::remainder(raw_yaw, 2 * autoaim::kPi)) < 1e-9);
+    CHECK(std::abs(a.yaw) <= autoaim::kPi + 1e-12);
+    put(3, 123456);  // restore
+
     sentry::SerialCommand c;
     c.yaw = 111;
     c.pitch = -222;
@@ -549,7 +558,8 @@ void testConfigValidation() {
     c.aimer.gimbal_tau = 0;
     c.tracker.armors_num = 5;
     c.camera.R_cam2gimbal = {1, 0, 0, 0, 1, 0, 0, 0, -1};  // det -1: a reflection
-    CHECK(c.validate().size() == 4);
+    c.tracker.q_yaw_walk = -1;                             // Stage K: a negative diffusion is nonsense
+    CHECK(c.validate().size() == 5);
 }
 
 // Delay calibration: static plate, sweeping gimbal, frames stamped 12 ms

@@ -12,6 +12,72 @@
   [首轮修复](docs/REVIEW_UPDATE_2026-11-10.md)。
 - 更新目录索引与配置口径说明，保留单份核心实现及历史材料。
 
+## 2026-11-11 — Stage K：yaw 过程噪声拆分与 ω 机动检测
+
+把"预测误差"从"执行误差"里拆出来之后（新增 `aim_err_px` / `fire_err_px`
+诊断列），两条真实视频上的瓶颈定位到**瞄准点的预测**，而不是云台跟随：
+`aim_err` 中位 16.8 px、`fire_err` 中位 8.1 px；`aim_err < 10 px` 时命中率 91.8%，
+`25–60 px` 掉到 10.3%。进一步用"模型相位 vs 实测相位"离线拟合测出角速度误差
+σ(ω)=0.69 rad/s，对应 0.39 s 预测时域上 15° 的相位误差——这才是命中率的主因。
+
+### 算法改动
+
+- **yaw 过程噪声拆成两项**（`tracker.q_yaw` + 新增 `tracker.q_yaw_walk`）。
+  原来是 `addWhiteNoiseAccel(Q, YAW, q_yaw, dt)`，一个参数同时决定角速率噪声和
+  相位噪声：想让 ω 刚性就必须把相位也冻住。拆开后 `q_yaw` 只管角速率扩散，
+  `q_yaw_walk` 给相位一条独立随机游走。因为 `q_yaw_walk` 是加性项，`q_yaw`
+  **保持冻结值 3 不动**，只新增 `q_yaw_walk: 0.05`。
+  **这不是白拿的**：在无噪声的匀速旋转合成目标上，0.4 s 外推误差反而从
+  20.1 mm 变差到 34.7 mm（`tests/test_main.cpp::testYawProcessNoiseSplit` 记录
+  了这个数字）。它赢在真实视频上——真实相位量测的相关误差需要滤波器吸收，
+  而干净数据上"注入方差"只是在污染物理模型。
+- **ω 专用机动检测**（`tracker.q_yaw_adapt`，默认 1）。原有 `q_scale_` 由位置
+  新息驱动，而位置新息对 ω 误差不敏感（XC/YC/R 会把相位误差吸收掉），所以对
+  ω 完全免疫——实测打开后数字一位不变。新增由偏航新息驱动的 `q_yaw_scale_`，
+  在角速率真的变化的场景放宽 ω。
+- **`aimer.phase_lead_deg`**：绕目标中心给瞄准点加一个相位导前。默认 0；
+  实验显示 ±20° 扫描关于 −5..0° 对称（峰值 ~57%），说明这两条录像上**没有**
+  系统性相位偏置，误差是随机的，不需要修。注意它只作用于装甲板；中心模式的
+  瞄准线不是板，不能被旋转（`testAimerPhaseLead` 覆盖）。
+- **诊断列**：`_track.csv` 增加 `aim_err_px`（瞄准点 vs 弹着时刻真实板心的距离，
+  纯预测误差）、`fire_err_px`（瞄准点到实际弹着点，执行误差）、`sigma_lat_px`
+  （滤波器自报的横向 1σ）。三者对比可直接判断该修预测还是修云台。
+
+上述结论与仓库自己的 `docs/miss_analysis.md` 一致（"误差是角速度估计抖动主导"），
+只是这次把"抖动"量化成 σ(ω) 并拆开了过程噪声。
+
+### 缺陷修复
+
+- `sentry/src/serial_protocol.cpp` 的 `wrapPi` 仍是 while 循环，±inf 会死循环，
+  违反 CLAUDE.md 的 `wrapAngle` 约定 → 改为 `std::remainder`
+  （`tests/test_sentry.cpp` 加了大角度回绕断言）。
+- `OutpostTracker` 缺少 `match_dt_scale_`：丢帧后关联门限不放宽，与 `RobotTracker`
+  不一致 → 补齐（并在 `predictTo` 之前计算，否则 `stamp_` 已被改写）。
+- `RobotAimer::aim(const TargetState&, double)`（哨兵重载）从不调用 `rate_.update`，
+  所以 `AimCommand::yaw_rate/pitch_rate`（B-01）一直是 0；目标切换/丢失时也不
+  `rate_.reset()`，一旦填值就会给出跨目标的假角速度 → 补齐，与步兵重载一致。
+- `OutpostTracker::transition` 同步支持 `q_yaw_walk`；`Config::validate()` 拒绝负的
+  `q_yaw_walk`。
+
+### 新增回归测试
+
+`testTrackerDropoutGrace`（单帧漏检不得降级，`lost_grace_frames` 0/1 两种行为）、
+`testYawProcessNoiseSplit`（相位方差不降、ω/半径仍收敛、默认 0 保持旧模型）、
+`testAimerPhaseLead`（导前 18°、保半径、中心模式忽略导前）、外加 `validate()` 与
+`wrapPi` 各一条。
+
+### 结果（两套口径分开看，见 BASELINE.md §11）
+
+| 口径 | 3.avi robot EKF | 4.avi robot EKF |
+|---|---|---|
+| `default.yaml`（现役，已改为 `walk=0.05`） | 56.8% / 8.65 → **57.3% / 8.8** | 64.4% / 8.40 → **66.9% / 8.8** |
+| `video_reference.yaml`（N0，未改，`walk=0`） | 67.5% / 10.60 → 67.5% / 10.6 | 68.6% / 10.06 → 68.6% / 10.1 |
+| `video_reference.yaml` + `--set q_yaw_walk=0.05` | 67.5% → **68.4%** / 10.67 | 68.6% → **71.1%** / 10.54 |
+
+现役配置是净提升；N0 冻结口径零变化，历史数字继续可比，同一个旋钮在 N0 上还能
+再拿 +0.9 / +2.5 pp（属口径决策）。0.32 s 预测中位：default 15.1→15.3 / 13.2→12.4 px，
+N0 14.3→14.3 / 13.3→12.4 px。仿真均值 74.5% → 73.0%（−1.5 pp，容差内）。
+
 ## 2026-11-10 — 审查修复与性能优化（分支 `optimize/core-hardening`）
 
 详细分析、数据与合并前检查清单见 [`docs/review_2026-11.md`](docs/review_2026-11.md)。

@@ -97,6 +97,14 @@ struct FrameLog {
     bool shot = false;
     ShotRecord shot_rec;
     int matched = 0;
+    // Diagnostics (negative = unavailable). `aim_err_px` is how far the aimed
+    // point lands from the nearest real plate at impact time, i.e. the pure
+    // prediction error. `fire_err_px` is how far the shot actually went from the
+    // aimed point, i.e. the gimbal/ballistics/timing part. Splitting the two
+    // tells you which half of the pipeline to fix.
+    double aim_err_px = -1;
+    double fire_err_px = -1;
+    double sigma_lat_px = -1;  // the filter's own 1-sigma lateral uncertainty, same units
 };
 
 struct EvalResult {

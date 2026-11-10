@@ -104,8 +104,11 @@ Config Config::load(const std::string& path) {
     get(t, "max_match_yaw_diff", c.tracker.max_match_yaw_diff);
     get(t, "tracking_thres", c.tracker.tracking_thres);
     get(t, "lost_time_thres", c.tracker.lost_time_thres);
+    get(t, "lost_grace_frames", c.tracker.lost_grace_frames);
     get(t, "q_xyz", c.tracker.q_xyz);
     get(t, "q_yaw", c.tracker.q_yaw);
+    get(t, "q_yaw_walk", c.tracker.q_yaw_walk);
+    get(t, "q_yaw_adapt", c.tracker.q_yaw_adapt);
     get(t, "q_r", c.tracker.q_r);
     get(t, "q_dz", c.tracker.q_dz);
     get(t, "pixel_noise", c.tracker.pixel_noise);
@@ -154,6 +157,7 @@ Config Config::load(const std::string& path) {
     get(a, "center_fire_window_deg", c.aimer.center_fire_window_deg);
     get(a, "fire_tolerance_scale", c.aimer.fire_tolerance_scale);
     get(a, "fire_sigma_scale", c.aimer.fire_sigma_scale);
+    get(a, "phase_lead_deg", c.aimer.phase_lead_deg);
     get(a, "gimbal_tau", c.aimer.gimbal_tau);
     get(a, "gimbal_max_rate", c.aimer.gimbal_max_rate);
     get(a, "gimbal_ff", c.aimer.gimbal_ff);
@@ -223,7 +227,8 @@ std::vector<std::string> Config::validate() const {
     need(tracker.singer_tau >= 0, "tracker.singer_tau must be >= 0 (0 = constant velocity)");
     need(tracker.nis_ema_alpha >= 0 && tracker.nis_ema_alpha <= 1, "tracker.nis_ema_alpha must be in [0, 1]");
     need(tracker.pixel_noise > 0 && tracker.r_yaw > 0, "tracker.pixel_noise and r_yaw must be > 0");
-    need(tracker.q_xyz >= 0 && tracker.q_yaw >= 0 && tracker.q_r >= 0 && tracker.q_dz >= 0,
+    need(tracker.q_xyz >= 0 && tracker.q_yaw >= 0 && tracker.q_r >= 0 && tracker.q_dz >= 0 &&
+             tracker.q_yaw_walk >= 0,
          "tracker process noises must be >= 0");
     need(ballistic.bullet_speed > 0, "ballistic.bullet_speed must be > 0");
     need(ballistic.gravity >= 0 && ballistic.drag_k >= 0, "ballistic.gravity and drag_k must be >= 0");
@@ -250,6 +255,9 @@ bool setParam(Config& c, const std::string& key, double v) {
     else if (key == "drag_k_42") c.ballistic.drag_k_42 = v;
     else if (key == "q_xyz") c.tracker.q_xyz = v;
     else if (key == "q_yaw") c.tracker.q_yaw = v;
+    else if (key == "q_yaw_walk") c.tracker.q_yaw_walk = v;
+    else if (key == "q_yaw_adapt") c.tracker.q_yaw_adapt = v != 0;
+    else if (key == "lost_grace") c.tracker.lost_grace_frames = static_cast<int>(std::lround(v));
     else if (key == "q_r") c.tracker.q_r = v;
     else if (key == "q_dz") c.tracker.q_dz = v;
     else if (key == "r_yaw") c.tracker.r_yaw = v;
@@ -270,6 +278,7 @@ bool setParam(Config& c, const std::string& key, double v) {
     else if (key == "center_fire_window") c.aimer.center_fire_window_deg = v;
     else if (key == "fire_tolerance") c.aimer.fire_tolerance_scale = v;
     else if (key == "fire_sigma") c.aimer.fire_sigma_scale = v;
+    else if (key == "phase_lead") c.aimer.phase_lead_deg = v;
     else if (key == "gimbal_tau") c.aimer.gimbal_tau = v;
     else if (key == "gimbal_ff") c.aimer.gimbal_ff = v;
     else if (key == "warmup_frames") c.aimer.warmup_frames = static_cast<int>(std::lround(v));

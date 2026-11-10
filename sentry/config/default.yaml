@@ -55,6 +55,8 @@ tracker:
    lost_time_thres: 0.4
    q_xyz: 1.0             # tuned (adaptive, see q_adapt_max)
    q_yaw: 3.             # tuned: visible plateau q_yaw 2-4 (README, tuning log H/J)
+   q_yaw_walk: 0.05
+   q_yaw_adapt: 1
    q_r: 3.0e-3           # radius process noise: apparent size changes when approaching
    q_dz: 1.0e-4
    pixel_noise: 1.0

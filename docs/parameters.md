@@ -33,7 +33,9 @@
 | `q_dz` | 0.0001 |
 | `q_r` | 0.003 |
 | `q_xyz` | 1 |
-| `q_yaw` | 3 |
+| `q_yaw` | 1 |
+| `q_yaw_adapt` | 1 |
+| `q_yaw_walk` | 0.12 |
 | `r_yaw` | 0.01 |
 | `r_yaw_head_on` | 0.02 |
 | `refine_corners` | 1 |
@@ -76,7 +78,9 @@
 | `min_plate_ratio` | 1.1 |
 | `min_radius` | 0.12 |
 | `min_switch_omega` | 1 |
+| `lost_grace_frames` | 0 |
 | `nis_ema_alpha` | 0.2 |
+| `phase_lead_deg` | 0 |
 | `pitch_deg` | 0 |
 | `reject_contained_lights` | 1 |
 | `tracking_thres` | 3 |

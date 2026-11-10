@@ -6,8 +6,15 @@ recordings (reusing the detection cache) and `autoaim_sim`, and fails if any
 metric drops past its tolerance. This is the manual gate that CI cannot run,
 because the videos are not in the repository.
 
+Section 10 was frozen with core/config/video_reference.yaml (the N0 reference:
+zero distortion, assumed pinhole intrinsics), NOT with the shipped default.yaml.
+Running the gate without --config therefore compared the live configuration
+against N0 numbers and could never pass. --config now defaults to the N0 file.
+
     python3 tools/regression.py                 # uses build/Release on Windows
     python3 tools/regression.py --exe build/apps/autoaim_video
+    python3 tools/regression.py --config core/config/default.yaml   # live config
+    python3 tools/regression.py --sim-ref 74.5                      # other machine
 
 Exit code 0 = no regression, 1 = regression or missing input.
 """
@@ -20,11 +27,24 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Frozen references (BASELINE.md section 10). Keep in sync when the baseline moves.
-REFERENCE = {
-    "3": {"hit": 67.6, "pred_032": 14.3, "hits_per_s": 10.6},
-    "4": {"hit": 68.6, "pred_032": 13.4, "hits_per_s": 10.0},
+# Frozen references (BASELINE.md sections 10 and 11). Each configuration has its
+# own reference set: the N0 reference config and the shipped live config differ
+# by ~10 pp on the same build, so comparing across them is meaningless.
+REFERENCE_BY_CONFIG = {
+    "video_reference.yaml": {
+        "3": {"hit": 67.6, "pred_032": 14.3, "hits_per_s": 10.6},
+        "4": {"hit": 68.6, "pred_032": 13.4, "hits_per_s": 10.0},
+    },
+    "default.yaml": {
+        "3": {"hit": 56.8, "pred_032": 15.1, "hits_per_s": 8.65},
+        "4": {"hit": 64.4, "pred_032": 13.2, "hits_per_s": 8.4},
+    },
 }
+REFERENCE = REFERENCE_BY_CONFIG["video_reference.yaml"]
+DEFAULT_CONFIG = "core/config/video_reference.yaml"
+# The simulator mean is machine dependent (BASELINE.md section 8: compare only
+# same machine, same binary, +-3 pp). 78.1 is the reference machine; this one
+# measures 74.5 with unmodified code, so pass --sim-ref 74.5 here.
 SIM_MEAN_REF = 78.1
 TOL_HIT_PP = 1.5
 TOL_PRED_PX = 1.5
@@ -69,11 +89,19 @@ def main() -> int:
     ap.add_argument("--videos", default="", help="逗号分隔；默认 3.avi,4.avi")
     ap.add_argument("--out", default="runs/regress")
     ap.add_argument("--sim-exe", default="", help="默认取 video exe 同目录的 autoaim_sim")
+    ap.add_argument("--config", default=DEFAULT_CONFIG,
+                    help="传给 autoaim_video 的配置（默认 N0 参考口径，见 BASELINE.md §10）")
+    ap.add_argument("--sim-ref", type=float, default=SIM_MEAN_REF,
+                    help="仿真均值基准（机器相关，见 BASELINE.md §8）")
     args = ap.parse_args()
 
     exe = Path(args.exe)
     if not exe.is_file():
         print(f"找不到 autoaim_video: {exe}", file=sys.stderr)
+        return 1
+    reference = REFERENCE_BY_CONFIG.get(Path(args.config).name)
+    if reference is None:
+        print(f"没有为 {args.config} 冻结基准；已知：{sorted(REFERENCE_BY_CONFIG)}", file=sys.stderr)
         return 1
 
     vdir = default_video_dir()
@@ -89,13 +117,13 @@ def main() -> int:
     failures = 0
     print(f"{'video':10s} {'metric':12s} {'reference':>9s} {'measured':>9s} {'delta':>8s}  verdict")
     for stem, video in videos:
-        proc = subprocess.run([str(exe), str(video), "--out", args.out],
+        proc = subprocess.run([str(exe), str(video), "--out", args.out, "--config", args.config],
                               capture_output=True, text=True)
         if proc.returncode != 0:
             print(f"{stem}: 运行失败\n{proc.stderr[-500:]}", file=sys.stderr)
             return 1
         got = parse_report(Path(args.out) / f"{stem}_report.md")
-        ref = REFERENCE.get(stem)
+        ref = reference.get(stem)
         if ref is None or len(got) < 3:
             print(f"{stem}: 无法解析报告", file=sys.stderr)
             return 1
@@ -115,10 +143,10 @@ def main() -> int:
                                              proc.stdout, re.MULTILINE)]
         if len(hits) == 8:
             mean = sum(hits) / 8
-            ok = mean >= SIM_MEAN_REF - TOL_SIM_PP
+            ok = mean >= args.sim_ref - TOL_SIM_PP
             failures += 0 if ok else 1
-            print(f"{'sim':10s} {'mean_hit':12s} {SIM_MEAN_REF:9.1f} {mean:9.1f} "
-                  f"{mean - SIM_MEAN_REF:+8.1f}  {'PASS' if ok else 'FAIL'}")
+            print(f"{'sim':10s} {'mean_hit':12s} {args.sim_ref:9.1f} {mean:9.1f} "
+                  f"{mean - args.sim_ref:+8.1f}  {'PASS' if ok else 'FAIL'}")
         else:
             print(f"sim: 解析到 {len(hits)} 个场景（应为 8），跳过", file=sys.stderr)
     else:

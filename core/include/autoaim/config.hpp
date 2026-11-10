@@ -88,9 +88,27 @@ struct TrackerConfig {
     double max_match_yaw_diff = 1.0;  // rad
     int tracking_thres = 3;           // consecutive matches DETECTING -> TRACKING
     double lost_time_thres = 0.4;     // s in TEMP_LOST before LOST
+    // Consecutive unmatched frames that still count as TRACKING. A single-frame
+    // detection dropout (glow, occlusion, a corner the classifier rejects) says
+    // nothing about the target, but it used to demote the track, which stops
+    // firing and resets every warm-up counter. 0 = the historical behaviour.
+    int lost_grace_frames = 0;
     // process noise (continuous white-noise acceleration spectral densities)
     double q_xyz = 4.0;
     double q_yaw = 30.0;
+    // Extra phase (angle) random walk on top of the white-noise-acceleration
+    // model above. q_yaw alone couples two requirements that a spinning robot
+    // has separately: the phase must stay responsive (it is what the aim point
+    // uses) while the angular rate must stay stiff (a spinner's omega is nearly
+    // constant, and every rad/s of omega error becomes a full horizon of phase
+    // error). With q_yaw_walk > 0 you can lower q_yaw (stiff omega) without
+    // freezing the phase. 0 = the historical single-q model.
+    double q_yaw_walk = 0.0;
+    // Scale the yaw process noise with the yaw-innovation manoeuvre detector. A
+    // stiff omega is what a constant spinner needs, but a target that reverses
+    // its spin needs the looser setting: with it off the simulator's two
+    // variable-rate scenarios lose ~19 and ~26 pp, with it ~16 and ~17 pp.
+    int q_yaw_adapt = 0;
     double q_r = 1e-4;
     double q_dz = 1e-4;
     // measurement noise
@@ -178,6 +196,9 @@ struct AimerConfig {
     // Fire only if the predicted lateral std of the aimed plate at impact time is
     // below this fraction of the panel half-width (0 disables the gate).
     double fire_sigma_scale = 0.6;
+    // Extra phase lead on the aimed plate, in degrees around the robot centre.
+    // Positive leads the spin (same direction as omega). 0 = trust the model.
+    double phase_lead_deg = 0.0;
     // simulated gimbal
     double gimbal_tau = 0.03;        // s, first-order lag
     double gimbal_max_rate = 12.0;
