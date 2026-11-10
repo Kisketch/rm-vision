@@ -40,7 +40,6 @@ REFERENCE_BY_CONFIG = {
         "4": {"hit": 64.4, "pred_032": 13.2, "hits_per_s": 8.4},
     },
 }
-REFERENCE = REFERENCE_BY_CONFIG["video_reference.yaml"]
 DEFAULT_CONFIG = "core/config/video_reference.yaml"
 # The simulator mean is machine dependent (BASELINE.md section 8: compare only
 # same machine, same binary, +-3 pp). 78.1 is the reference machine; this one
