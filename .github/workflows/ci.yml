@@ -17,6 +17,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
+            python3-opencv python3-numpy \
             libopencv-dev \
             libopencv-core-dev \
             libopencv-imgproc-dev \
@@ -36,6 +37,9 @@ jobs:
 
       - name: Test (core + sentry + serial)
         run: ctest --test-dir build --output-on-failure
+
+      - name: Detection cache integration
+        run: /usr/bin/python3 tests/test_cache.py build/apps/autoaim_video
 
       - name: Smoke - simulation, infantry config
         run: ./build/apps/autoaim_sim --config core/config/default.yaml --seconds 5

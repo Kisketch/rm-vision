@@ -15,6 +15,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -56,15 +57,23 @@ std::uint64_t fileHash(const std::string& path) {
 
 std::string cacheSignature(const std::string& video, const DetectorConfig& d) {
     std::ostringstream s;
-    s << std::setprecision(17) << "detector-v2 " << CV_VERSION << ' ' << fileHash(video) << ' '
+    s << std::setprecision(17) << "detector-v3 " << CV_VERSION << ' ' << fileHash(video) << ' '
       << fileHash(d.model_path) << ' ' << fileHash(d.label_path) << ' '
+      << d.backend.size() << ':' << d.backend << ' '
+      << d.onnx_path.size() << ':' << d.onnx_path << ' '
+      << (d.backend == "onnx" && !d.onnx_path.empty() && fs::exists(d.onnx_path)
+              ? fileHash(d.onnx_path) : 0) << ' '
+      << d.keypoint_conf << ' ' << d.keypoint_min_conf << ' ' << d.keypoint_nms << ' ' << d.keypoint_input << ' '
       << static_cast<int>(d.enemy_color) << ' ' << d.channel_diff_threshold << ' '
+      << d.channel_diff_adaptive << ' ' << d.channel_diff_k << ' '
+      << d.channel_diff_min << ' ' << d.channel_diff_max << ' '
       << d.min_light_length << ' ' << d.min_light_aspect << ' ' << d.max_light_aspect << ' '
       << d.min_fill_ratio << ' ' << d.max_light_tilt_deg << ' ' << d.max_pair_angle_diff_deg << ' '
       << d.max_length_ratio << ' ' << d.max_center_y_diff << ' ' << d.min_gap_ratio << ' '
       << d.max_gap_ratio << ' ' << d.min_plate_ratio << ' ' << d.max_plate_ratio << ' '
       << d.large_plate_ratio << ' ' << d.reject_contained_lights << ' ' << d.refine_corners << ' '
       << d.classify_threshold;
+    for (const auto& name : d.onnx_classes) s << ' ' << name.size() << ':' << name;
     for (const auto& name : d.ignore_classes) s << ' ' << name.size() << ':' << name;
     std::uint64_t h = 14695981039346656037ULL;
     for (unsigned char c : s.str()) {
@@ -82,7 +91,7 @@ bool cacheMetadataMatches(const std::string& path, const std::string& signature,
         cv::FileStorage meta(path, cv::FileStorage::READ);
         if (!meta.isOpened() || meta["version"].empty() || meta["signature"].empty() ||
             meta["frames"].empty()) return false;
-        return static_cast<int>(meta["version"]) == 2 &&
+        return static_cast<int>(meta["version"]) == 3 &&
                static_cast<std::string>(meta["signature"]) == signature &&
                static_cast<int>(meta["frames"]) == static_cast<int>(frames);
     } catch (const cv::Exception&) {
@@ -94,7 +103,7 @@ void saveCacheMetadata(const std::string& path, const std::string& signature,
                        std::size_t frames) {
     cv::FileStorage meta(path, cv::FileStorage::WRITE);
     if (!meta.isOpened()) throw std::runtime_error("cannot write cache metadata: " + path);
-    meta << "version" << 2 << "signature" << signature << "frames" << static_cast<int>(frames);
+    meta << "version" << 3 << "signature" << signature << "frames" << static_cast<int>(frames);
 }
 
 std::vector<FrameDetections> runDetector(const std::string& video, const Config& cfg, double& ms_per_frame) {
@@ -136,12 +145,62 @@ void writeCsv(const std::string& path, const EvalResult& r) {
     }
 }
 
+// A separate opt-in replay keeps diagnostic allocations out of the timed
+// evaluation and of the production tracker path. It uses the exact same
+// observations/order as evaluate(), and verifies state/match parity.
+void writeDiagnostics(const std::string& prefix, const Config& cfg,
+                      const std::vector<FrameDetections>& dets,
+                      const std::vector<FrameObservations>& obs, const EvalResult& result,
+                      const PoseSolver& solver, const CameraModel& camera) {
+    std::ofstream pose(prefix + "_pose_diagnostics.csv"), assoc(prefix + "_association.csv");
+    if (!pose || !assoc) throw std::runtime_error("cannot write diagnostics: " + prefix);
+    pose << "frame,detection,observation,status,candidates,physical_candidates,fit_reproj_px,final_reproj_px\n";
+    assoc << "frame,observation,state_before,state_after,event,reinitialized_observation,reason,armor,"
+             "nearest_distance_m,nearest_yaw_rad,distance_gate_m,yaw_gate_rad,distance_pass,geometry_pass,best_score\n";
+    pose << std::setprecision(17);
+    assoc << std::setprecision(17);
+    RobotTracker tracker(cfg.tracker, camera);
+    tracker.setDiagnosticsEnabled(true);
+    for (std::size_t n = 0; n < dets.size(); ++n) {
+        int observation = 0;
+        if (dets[n].armors.empty())
+            pose << dets[n].frame << ",-1,-1,no_detection,0,0,nan,nan\n";
+        for (std::size_t i = 0; i < dets[n].armors.size(); ++i) {
+            ArmorObservation armor;
+            PoseDiagnostic diag;
+            const bool accepted = solver.solve(dets[n].armors[i], armor, &diag);
+            pose << dets[n].frame << ',' << i << ',' << (accepted ? observation++ : -1) << ','
+                 << diag.status << ',' << diag.candidates << ',' << diag.physical_candidates << ','
+                 << diag.fit_reproj_px << ',' << diag.final_reproj_px << '\n';
+        }
+        if (observation != static_cast<int>(obs[n].armors.size()))
+            throw std::runtime_error("pose diagnostic replay diverged");
+        const auto before = tracker.state();
+        tracker.update(obs[n]);
+        if (tracker.state() != result.log[n].state || tracker.matched_count != result.log[n].matched)
+            throw std::runtime_error("association diagnostic replay diverged");
+        const auto prefix_row = [&](int i) {
+            assoc << dets[n].frame << ',' << i << ',' << toString(before) << ',' << toString(tracker.state())
+                  << ',' << tracker.diagnostic_event << ',' << tracker.reinitialized_observation << ',';
+        };
+        if (tracker.association_diagnostics.empty()) {
+            prefix_row(-1);
+            assoc << "no_observation,-1,nan,nan,nan,nan,0,0,nan\n";
+        }
+        for (const auto& d : tracker.association_diagnostics) {
+            prefix_row(d.observation);
+            assoc << d.reason << ',' << d.armor << ',' << d.nearest_distance << ',' << d.nearest_yaw
+                  << ',' << d.distance_gate << ',' << d.yaw_gate << ',' << d.distance_pass << ','
+                  << d.geometry_pass << ',' << d.best_score << '\n';
+        }
+    }
+}
 }  // namespace
 
 int main(int argc, char** argv) {
     if (argc < 2) {
         std::cerr << "usage: autoaim_video <video> [--config cfg.yaml] [--out dir] [--redetect] [--render A:B]\n"
-                     "                     [--camera calibrated.yml] [--set key=value]... [--sweep key=v1,v2,...]\n";
+                     "                     [--camera calibrated.yml] [--diagnostics] [--set key=value]... [--sweep key=v1,v2,...]\n";
         return 1;
     }
     const std::string video = argv[1];
@@ -149,6 +208,7 @@ int main(int argc, char** argv) {
     std::string camera_path;
     std::string out_dir = "out";
     bool redetect = false;
+    bool diagnostics = false;
     int render_a = -1, render_b = -1;
     std::vector<std::pair<std::string, double>> sets;
     std::string sweep_key;
@@ -159,6 +219,7 @@ int main(int argc, char** argv) {
         else if (a == "--camera" && i + 1 < argc) camera_path = argv[++i];
         else if (a == "--out" && i + 1 < argc) out_dir = argv[++i];
         else if (a == "--redetect") redetect = true;
+        else if (a == "--diagnostics") diagnostics = true;
         else if (a == "--render" && i + 1 < argc) std::sscanf(argv[++i], "%d:%d", &render_a, &render_b);
         else if (a == "--set" && i + 1 < argc) {
             const std::string kv = argv[++i];
@@ -224,8 +285,10 @@ int main(int argc, char** argv) {
             std::cerr << "unknown parameter " << k << '\n';
             return 1;
         }
-    if (sweep_key == "refine_corners") {
-        std::cerr << "refine_corners changes detections; use separate --set runs instead of --sweep\n";
+    const std::vector<std::string> detector_sweeps = {
+        "refine_corners", "channel_diff_threshold", "diff_adaptive", "diff_k", "diff_min", "diff_max"};
+    if (std::find(detector_sweeps.begin(), detector_sweeps.end(), sweep_key) != detector_sweeps.end()) {
+        std::cerr << sweep_key << " changes detections; use separate --set runs instead of --sweep\n";
         return 1;
     }
 
@@ -303,6 +366,7 @@ int main(int argc, char** argv) {
         o << "# " << stem << "\n\n" << report;
     }
     writeCsv(out_dir + "/" + stem + "_track.csv", res);
+    if (diagnostics) writeDiagnostics(out_dir + "/" + stem, cfg, dets, obs, res, solver, camera);
 
     // Yaw diagnostic: measured plate yaw vs the yaw implied by the plate's
     // lateral offset from the estimated robot centre (lateral position is the

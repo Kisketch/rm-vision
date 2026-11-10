@@ -85,6 +85,7 @@ Config Config::load(const std::string& path) {
     get(d, "onnx_path", c.detector.onnx_path);
     getStrings(d, "onnx_classes", c.detector.onnx_classes);
     get(d, "keypoint_conf", c.detector.keypoint_conf);
+    get(d, "keypoint_min_conf", c.detector.keypoint_min_conf);
     get(d, "keypoint_nms", c.detector.keypoint_nms);
     { int v = 640; get(d, "keypoint_input", v); c.detector.keypoint_input = v; }
 
@@ -95,6 +96,7 @@ Config Config::load(const std::string& path) {
     get(p, "outpost_as_large", c.pose.outpost_as_large);
     get(p, "yaw_search_range_deg", c.pose.yaw_search_range_deg);
     get(p, "yaw_gain", c.pose.yaw_gain);
+    get(p, "max_reproj_error_px", c.pose.max_reproj_error_px);
 
     const auto t = fs["tracker"];
     get(t, "armors_num", c.tracker.armors_num);
@@ -205,6 +207,8 @@ std::vector<std::string> Config::validate() const {
          "detector.channel_diff_threshold must be in [0, 255)");
     need(detector.classify_threshold >= 0 && detector.classify_threshold <= 1,
          "detector.classify_threshold must be in [0, 1]");
+    need(std::isfinite(pose.max_reproj_error_px) && pose.max_reproj_error_px >= 0,
+         "pose.max_reproj_error_px must be finite and >= 0");
     need(tracker.armors_num >= 2 && tracker.armors_num <= 4, "tracker.armors_num must be 2, 3 or 4");
     need(tracker.outpost_min_radius > 0 && tracker.outpost_min_radius <= tracker.outpost_max_radius,
          "tracker.outpost_min_radius must be > 0 and <= outpost_max_radius");
@@ -276,6 +280,7 @@ bool setParam(Config& c, const std::string& key, double v) {
     else if (key == "q_outpost_z") c.tracker.q_outpost_z = v;
     else if (key == "q_outpost_r") c.tracker.q_outpost_r = v;
     else if (key == "optimize_yaw") c.pose.optimize_yaw = v != 0;
+    else if (key == "max_pose_reproj") c.pose.max_reproj_error_px = v;
     else if (key == "yaw_gain") c.pose.yaw_gain = v;
     else if (key == "refine_corners") c.detector.refine_corners = v != 0;
     else if (key == "diff_adaptive") c.detector.channel_diff_adaptive = v != 0;

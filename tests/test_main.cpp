@@ -1,6 +1,7 @@
 // Minimal self-contained tests (no framework dependency).
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <random>
 #include <utility>
 
@@ -143,6 +144,97 @@ static void testPose() {
     CHECK(max_yaw < 8.0, "yaw error %.1f deg", max_yaw);
     std::printf("pose: max rel. position error %.2f%%, max yaw error %.2f deg (0.3 px noise)\n", 100 * max_pos,
                 max_yaw);
+}
+
+static void testPoseQuality() {
+    CameraModel cam(CameraConfig{});
+    PoseConfig pc;
+    pc.yaw_gain = 1.5;
+    PoseSolver solver(cam, pc);
+    ArmorDetection d;
+    d.type = ArmorType::SMALL;
+    const auto corners = armorCorners({4, 0.2, 0}, 0.5, 15 * kPi / 180, d.type);
+    for (int i = 0; i < 4; ++i) d.corners[i] = cv::Point2f(cam.project(corners[i]));
+    d.corners[0].y += 0.3f;  // nonzero fit residual, plus yaw_gain correction
+    d.center = (d.corners[0] + d.corners[1] + d.corners[2] + d.corners[3]) * 0.25f;
+    ArmorObservation o;
+    PoseDiagnostic diag;
+    CHECK(solver.solve(d, o, &diag), "valid pose");
+    CHECK(diag.physical_candidates > 0 && std::string(diag.status) == "accepted", "physical solution");
+    double final_error = 0;
+    const auto final = armorCorners(o.position, o.yaw, 15 * kPi / 180, d.type);
+    for (int i = 0; i < 4; ++i) {
+        CHECK(cam.worldToCamera(final[i])[2] > 0, "positive depth");
+        final_error += cv::norm(cam.project(final[i]) - cv::Point2d(d.corners[i])) / 4;
+    }
+    CHECK(std::abs(o.reproj_error - final_error) < 1e-9, "final yaw residual %.6f != %.6f", o.reproj_error, final_error);
+    CHECK(diag.final_reproj_px > diag.fit_reproj_px, "gain correction reflected in residual");
+    pc.max_reproj_error_px = final_error * 0.5;
+    CHECK(!PoseSolver(cam, pc).solve(d, o, &diag) && std::string(diag.status) == "reprojection_gate", "explicit residual gate");
+    CHECK(o.distance == 0, "failure clears previous output");
+    auto bad = d;
+    bad.corners[0].x = std::numeric_limits<float>::quiet_NaN();
+    CHECK(!solver.solve(bad, o, &diag) && std::string(diag.status) == "invalid_corners", "NaN input");
+    bad = d; bad.corners[0].y = std::numeric_limits<float>::infinity();
+    CHECK(!solver.solve(bad, o, &diag), "Inf input");
+    bad = d; bad.corners[1] = bad.corners[0];
+    CHECK(!solver.solve(bad, o, &diag) && std::string(diag.status) == "degenerate_quad", "duplicate corners");
+    bad = d; std::swap(bad.corners[0], bad.corners[1]);
+    CHECK(!solver.solve(bad, o, &diag), "self-intersecting quad");
+    for (double distance : {0.1, 60.0}) {
+        bad = d;
+        const auto c = armorCorners({distance, 0.02, 0}, 0.4, 15 * kPi / 180, d.type);
+        for (int i = 0; i < 4; ++i) bad.corners[i] = cv::Point2f(cam.project(c[i]));
+        CHECK(!solver.solve(bad, o, &diag) && std::string(diag.status) == "distance_gate", "distance gate %.1f: %s", distance, diag.status);
+    }
+}
+
+static void testAssociationDiagnostics() {
+    CameraModel cam(CameraConfig{});
+    TrackerConfig cfg;
+    cfg.max_match_yaw_diff = 0.1;
+    auto observation = [] {
+        ArmorObservation o;
+        o.position = {4.75, 0, 0}; o.distance = 4.75; o.yaw = 0;
+        o.det.number = "3"; o.det.left.length = o.det.right.length = 20;
+        return o;
+    };
+    for (int scenario = 0; scenario < 4; ++scenario) {
+        RobotTracker tr(cfg, cam), plain(cfg, cam);
+        tr.setDiagnosticsEnabled(true);
+        FrameObservations f; f.stamp = 0; f.armors = {observation()};
+        tr.update(f); plain.update(f);
+        CHECK(std::string(tr.association_diagnostics[0].reason) == "initialized", "init reason");
+        f.stamp = 0.04;
+        if (scenario == 1) f.armors[0].det.number = "4";
+        if (scenario == 2) f.armors[0].position[2] = 5;
+        if (scenario == 3) f.armors[0].yaw = 0.6;
+        tr.update(f); plain.update(f);
+        const char* expected[] = {"matched", "other_identity", "distance_gate", "yaw_gate"};
+        CHECK(std::string(tr.association_diagnostics[0].reason) == expected[scenario], "scenario %d reason %s", scenario, tr.association_diagnostics[0].reason);
+        CHECK(tr.state() == plain.state() && tr.matched_count == plain.matched_count && cv::norm(tr.x() - plain.x()) == 0, "diagnostic parity");
+        CHECK(plain.association_diagnostics.empty(), "disabled diagnostics allocate no records");
+        f.stamp = 0.08; f.armors.clear(); tr.update(f);
+        CHECK(tr.association_diagnostics.empty(), "no stale diagnostic entries on empty frame");
+    }
+    RobotTracker settled(cfg, cam);
+    settled.setDiagnosticsEnabled(true);
+    FrameObservations f;
+    for (int i = 0; i < 100; ++i) {
+        f.stamp = i * 0.04; f.armors = {observation()}; settled.update(f);
+    }
+    f.stamp = 4.0; f.armors = {observation(), observation()}; settled.update(f);
+    int conflicts = 0, matches = 0;
+    for (const auto& d : settled.association_diagnostics) {
+        conflicts += std::string(d.reason) == "assignment_conflict";
+        matches += std::string(d.reason) == "matched";
+    }
+    CHECK(conflicts == 1 && matches == 1, "one plate cannot consume two observations");
+    f.stamp = 4.04; f.armors = {observation()}; f.armors[0].position[1] = 0.25;
+    settled.update(f);
+    CHECK(std::string(settled.association_diagnostics[0].reason) == "score_gate",
+          "covariance gate reason %s score %.2f", settled.association_diagnostics[0].reason,
+          settled.association_diagnostics[0].best_score);
 }
 
 static void testTracker() {
@@ -353,8 +445,8 @@ static void testKeypointDetector() {
     anchor(0, 320, 322, 120, 50, 0, 0.9f, kp0);
     anchor(1, 324, 324, 120, 50, 0, 0.8f, kp0);  // duplicate -> NMS drops it
     anchor(2, 100, 100, 60, 30, 1, 0.2f, kp0);   // below conf -> dropped
-    const std::array<cv::Point2f, 4> kp3 = {cv::Point2f(65, 545), cv::Point2f(135, 545),
-                                            cv::Point2f(138, 578), cv::Point2f(62, 578)};
+    const std::array<cv::Point2f, 4> kp3 = {cv::Point2f(65, 520), cv::Point2f(135, 520),
+                                            cv::Point2f(138, 550), cv::Point2f(62, 550)};
     anchor(3, 100, 560, 80, 40, 1, 0.7f, kp3);
 
     const auto cands = parseKeypointOutput(out, 2, 0.25f, 0.45f, 640, 1440, 1080);
@@ -381,6 +473,23 @@ static void testKeypointDetector() {
         for (int i = 0; i < N; ++i) out_t.ptr<float>()[i * C + c] = out.ptr<float>()[c * N + i];
     CHECK(parseKeypointOutput(out_t, 2, 0.25f, 0.45f, 640, 1440, 1080).size() == 2,
           "transposed layout");
+
+    // Invalid high-score detections must be removed before NMS, otherwise they
+    // can suppress a valid lower-score observation of the same plate.
+    const cv::Mat good = out.clone();
+    set(8, 0, 0.01f);  // first corner confidence, best anchor
+    const auto low = parseKeypointOutput(out, 2, 0.25f, 0.45f, 640, 1440, 1080);
+    CHECK(low.size() == 2 && std::abs(low[0].score - 0.8f) < 1e-6, "low-confidence anchor rejected before NMS");
+    out = good.clone();
+    for (int i : {0, 1}) set(6, i, std::numeric_limits<float>::quiet_NaN());
+    CHECK(parseKeypointOutput(out, 2, 0.25f, 0.45f, 640, 1440, 1080).size() == 1, "NaN corners rejected");
+    out = good.clone();
+    for (int i : {0, 1}) set(7, i, 10);  // inside letterbox padding, outside source image
+    CHECK(parseKeypointOutput(out, 2, 0.25f, 0.45f, 640, 1440, 1080).size() == 1, "padding corners rejected");
+    out = good.clone();
+    for (int i : {0, 1})
+        for (int k = 0; k < 4; ++k) { set(6 + 3*k, i, 320); set(7 + 3*k, i, 320); }
+    CHECK(parseKeypointOutput(out, 2, 0.25f, 0.45f, 640, 1440, 1080).size() == 1, "collapsed quad rejected");
 
     // Detector fallback: backend=onnx with no model must run traditional.
     DetectorConfig fc;
@@ -622,6 +731,8 @@ int main() {
     testAimerOffsets();
     testBallistics();
     testPose();
+    testPoseQuality();
+    testAssociationDiagnostics();
     testTracker();
     testDeviceId();
     testAimerRates();

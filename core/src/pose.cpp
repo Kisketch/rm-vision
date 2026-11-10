@@ -1,9 +1,11 @@
 #include "autoaim/pose.hpp"
 
 #include <opencv2/calib3d.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace autoaim {
 
@@ -99,7 +101,10 @@ std::array<cv::Vec3d, 4> armorCorners(const cv::Vec3d& center, double yaw, doubl
 }
 
 PoseSolver::PoseSolver(const CameraModel& camera, const PoseConfig& cfg)
-    : camera_(camera), cfg_(cfg) {}
+    : camera_(camera), cfg_(cfg) {
+    if (!std::isfinite(cfg.max_reproj_error_px) || cfg.max_reproj_error_px < 0)
+        throw std::invalid_argument("pose.max_reproj_error_px must be finite and >= 0");
+}
 
 double PoseSolver::reprojectionError(const ArmorDetection& det, const cv::Vec3d& center, double yaw,
                                      double pitch) const {
@@ -113,7 +118,21 @@ double PoseSolver::reprojectionError(const ArmorDetection& det, const cv::Vec3d&
     return err / 4.0;
 }
 
-bool PoseSolver::solve(const ArmorDetection& det, ArmorObservation& out) const {
+bool PoseSolver::solve(const ArmorDetection& det, ArmorObservation& out, PoseDiagnostic* diagnostic) const {
+    PoseDiagnostic local;
+    auto& diag = diagnostic ? *diagnostic : local;
+    diag = PoseDiagnostic{};
+    out = ArmorObservation{};
+    const auto fail = [&](const char* reason) {
+        diag.status = reason;
+        out = ArmorObservation{};
+        return false;
+    };
+    const std::vector<cv::Point2f> quad(det.corners.begin(), det.corners.end());
+    for (const auto& p : quad)
+        if (!std::isfinite(p.x) || !std::isfinite(p.y)) return fail("invalid_corners");
+    if (!cv::isContourConvex(quad) || std::abs(cv::contourArea(quad)) < 1.0)
+        return fail("degenerate_quad");
     // The classifier runs before the pose, so the outpost can be forced onto the
     // large-armor geometry even if its aspect ratio was ambiguous.
     ArmorDetection d = det;
@@ -131,14 +150,15 @@ bool PoseSolver::solve(const ArmorDetection& det, ArmorObservation& out) const {
         n = cv::solvePnPGeneric(obj, img, camera_.K(), camera_.dist(), rvecs, tvecs, false,
                                 cv::SOLVEPNP_IPPE, rv, tv, errs);
     } catch (const cv::Exception&) {
-        return false;
+        return fail("pnp_exception");
     }
-    if (n <= 0) return false;
+    diag.candidates = n;
+    if (n <= 0) return fail("no_solution");
 
     const double expected_pitch =
         (d.type == ArmorType::OUTPOST ? cfg_.outpost_armor_pitch_deg : cfg_.armor_pitch_deg) *
         kPi / 180.0;
-    int best = 0;
+    int best = -1;
     double best_cost = 1e18;
     double best_yaw = 0;
     cv::Vec3d best_t;
@@ -150,6 +170,14 @@ bool PoseSolver::solve(const ArmorDetection& det, ArmorObservation& out) const {
         const double pitch = std::asin(std::clamp(-R_wa(2, 0), -1.0, 1.0));
         const cv::Vec3d t_c(tvecs[i].at<double>(0), tvecs[i].at<double>(1), tvecs[i].at<double>(2));
         const double err = errs.size() > static_cast<std::size_t>(i) ? errs[i] : 0.0;
+        bool physical = std::isfinite(yaw) && std::isfinite(pitch) && std::isfinite(err);
+        for (const auto& p : obj) {
+            const cv::Vec3d c = R_ca * cv::Vec3d(p.x, p.y, p.z) + t_c;
+            for (double v : c.val) physical = physical && std::isfinite(v);
+            physical = physical && c[2] > 0;
+        }
+        if (!physical) continue;
+        ++diag.physical_candidates;
         // reprojection error dominates; pitch prior breaks the IPPE near-tie
         const double cost = err + 2.0 * std::abs(pitch - expected_pitch);
         if (cost < best_cost) {
@@ -157,7 +185,7 @@ bool PoseSolver::solve(const ArmorDetection& det, ArmorObservation& out) const {
             best_t = camera_.cameraToWorld(t_c);
         }
     }
-    (void)best;
+    if (best < 0) return fail("no_physical_solution");
 
     out.det = d;
     out.position = best_t;
@@ -200,14 +228,29 @@ bool PoseSolver::solve(const ArmorDetection& det, ArmorObservation& out) const {
         out.reproj_error = reprojectionError(d, best_t, out.yaw, expected_pitch);
     }
 
+    diag.fit_reproj_px = out.reproj_error;
     if (cfg_.yaw_gain != 1.0) {
         const double los = std::atan2(best_t[1], best_t[0]);
         out.yaw = wrapAngle(los + cfg_.yaw_gain * wrapAngle(out.yaw - los));
     }
 
+    // yaw_gain changes the returned pose: diagnostics and quality gates must
+    // measure that pose, not the uncorrected least-squares fit.
+    out.reproj_error = reprojectionError(d, best_t, out.yaw, expected_pitch);
+    diag.final_reproj_px = out.reproj_error;
+    for (double v : out.position.val)
+        if (!std::isfinite(v)) return fail("nonfinite_pose");
+    if (!std::isfinite(out.yaw) || !std::isfinite(out.reproj_error) || !std::isfinite(out.distance))
+        return fail("nonfinite_pose");
+    for (const auto& p : armorCorners(best_t, out.yaw, expected_pitch, d.type))
+        if (!(camera_.worldToCamera(p)[2] > 0)) return fail("nonpositive_depth");
+    if (!(out.distance > 0.2 && out.distance < 30.0)) return fail("distance_gate");
+    if (cfg_.max_reproj_error_px > 0 && out.reproj_error > cfg_.max_reproj_error_px)
+        return fail("reprojection_gate");
     const cv::Point2d c(camera_.K()(0, 2), camera_.K()(1, 2));
     out.image_center_dist = cv::norm(cv::Point2d(det.center) - c);
-    return std::isfinite(out.position[0]) && out.distance > 0.2 && out.distance < 30.0;
+    diag.status = "accepted";
+    return true;
 }
 
 std::vector<ArmorObservation> PoseSolver::solveAll(const std::vector<ArmorDetection>& dets) const {

@@ -68,7 +68,15 @@ int main(int argc, char** argv) {
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
-        if (a == "--config" && i + 1 < argc) config_path = argv[++i];
+        if (a == "--help" || a == "-h") {
+            std::cout << "usage: sentry_robot (--camera INDEX | --video FILE) [options]\n"
+                         "  --config FILE --serial DEVICE --render --roi --max-frames N\n"
+                         "  --calib-delay (never fires) --exposure-offset-ms MS\n"
+                         "  --stamp-delay-ms MS --max-gap-ms MS --max-extrap-ms MS --require-crc\n"
+                         "  --comp-yaw DEG --comp-pitch DEG\n";
+            return 0;
+        }
+        else if (a == "--config" && i + 1 < argc) config_path = argv[++i];
         else if (a == "--video" && i + 1 < argc) video = argv[++i];
         else if (a == "--camera" && i + 1 < argc) camera_index = std::stoi(argv[++i]);
         else if (a == "--serial" && i + 1 < argc) serial_device = argv[++i];
@@ -203,6 +211,9 @@ int main(int argc, char** argv) {
             sc = sentry::toSerial(last_cmd, comp_yaw, comp_pitch);
             sc.fire = 0;
         }
+        // Calibration observes a static plate while the operator sweeps the gimbal.
+        // Do not let an otherwise valid tracking solution authorize a shot.
+        if (calib_delay) sc.fire = 0;
         if (serial) serial->send(sentry::packControl(sc));
 
         if (render && have_out) {
@@ -227,6 +238,7 @@ int main(int argc, char** argv) {
         }
         ++processed;
     }
+    if (serial) serial->send(sentry::packControl({}));  // normal exit: invalidate the last command
     if (calib_delay) {
         calibrator.resolve(nowSeconds(), attitude_at);
         const autoaim::DelayEstimate e = calibrator.estimate();

@@ -76,3 +76,16 @@ ctest --test-dir build
 实拍视频评测对冻结基线（`BASELINE.md`）：整车 EKF 67.5 % / 68.6 %、
 预测中位 14.3 / 13.3 px；哨兵策略（哨兵参数）67.6 % / 71.9 %。
 口径细节见 `docs/monorepo_migration.md`。
+
+## 离线视频配置口径
+
+历史 3.avi / 4.avi 的 N0 基线使用假设内参、零畸变和 25 m/s；当前
+`core/config/default.yaml` 使用导入的标定值和 22 m/s，不能直接与 N0 数字比较。
+复现旧基线请显式传 `--config core/config/video_reference.yaml`。
+该配置只供离线回归，不是机器人标定。完整试跑、失败帧和指标限制见
+[2026-11-10 视频测试](docs/VIDEO_TEST_2026-11-10.md)。
+
+PnP/关联排查可加 `--diagnostics`，生成逐检测位姿质量和逐观测关联原因 CSV。
+可选 `--set max_pose_reproj=像素值` 对最终姿态平均角点残差门控（默认 0，关闭经验残差门限）。
+诊断字段、实测统计及标定溯源见
+[位姿与关联诊断](docs/POSE_ASSOCIATION_DIAGNOSTICS_2026-11-10.md)。

@@ -42,9 +42,10 @@ Light edgeLight(const cv::Point2f& bottom, const cv::Point2f& top, Color color) 
 
 std::vector<KeypointCandidate> parseKeypointOutput(const cv::Mat& output, int num_classes,
                                                    float conf_thr, float nms_thr, int input_size,
-                                                   int img_w, int img_h) {
+                                                   int img_w, int img_h, float min_keypoint_conf) {
     std::vector<KeypointCandidate> out;
-    if (output.dims != 3 || num_classes <= 0) return out;
+    if (output.dims != 3 || output.size[0] != 1 || num_classes <= 0 ||
+        img_w <= 0 || img_h <= 0 || input_size <= 0) return out;
     cv::Mat m;
     output.convertTo(m, CV_32F);
     const int channels = 4 + num_classes + 12;
@@ -77,6 +78,8 @@ std::vector<KeypointCandidate> parseKeypointOutput(const cv::Mat& output, int nu
         }
         if (best_cls < 0 || best < conf_thr) continue;
         const float cx = at(0, i), cy = at(1, i), w = at(2, i), h = at(3, i);
+        if (!std::isfinite(cx) || !std::isfinite(cy) || !std::isfinite(w) ||
+            !std::isfinite(h) || w <= 0 || h <= 0 || !std::isfinite(best)) continue;
         KeypointCandidate kc;
         kc.score = best;
         kc.cls = best_cls;
@@ -88,6 +91,17 @@ std::vector<KeypointCandidate> parseKeypointOutput(const cv::Mat& output, int nu
             kc.kpts[k] = unmap(at(kbase + 3 * k, i), at(kbase + 3 * k + 1, i));
             kc.kpt_conf[k] = at(kbase + 3 * k + 2, i);
         }
+        bool valid = true;
+        for (int k = 0; k < 4; ++k) {
+            const auto& p = kc.kpts[k];
+            valid = valid && std::isfinite(p.x) && std::isfinite(p.y) &&
+                std::isfinite(kc.kpt_conf[k]) && kc.kpt_conf[k] >= min_keypoint_conf &&
+                p.x >= 0 && p.y >= 0 && p.x < img_w && p.y < img_h;
+        }
+        if (!valid) continue;
+        const auto ordered = orderArmorCorners(kc.kpts);
+        const std::vector<cv::Point2f> quad(ordered.begin(), ordered.end());
+        if (!cv::isContourConvex(quad) || std::abs(cv::contourArea(quad)) < 1.0) continue;
         cands.push_back(kc);
     }
     std::sort(cands.begin(), cands.end(),
@@ -159,7 +173,7 @@ std::vector<ArmorDetection> KeypointDetector::detect(const cv::Mat& bgr) {
     const cv::Mat output = net_.forward();
     const auto cands = parseKeypointOutput(output, static_cast<int>(cfg_.onnx_classes.size()),
                                            static_cast<float>(cfg_.keypoint_conf),
-                                           static_cast<float>(cfg_.keypoint_nms), in, bgr.cols, bgr.rows);
+                                           static_cast<float>(cfg_.keypoint_nms), in, bgr.cols, bgr.rows, static_cast<float>(cfg_.keypoint_min_conf));
     out.reserve(cands.size());
     for (const auto& c : cands) out.push_back(candidateToArmor(c, cfg_));
     return out;

@@ -61,11 +61,15 @@ struct DetectorConfig {
     std::string onnx_path;
     std::vector<std::string> onnx_classes = {"1", "2", "3", "4", "5", "outpost", "guard", "base"};
     double keypoint_conf = 0.25;
+    double keypoint_min_conf = 0.25;  // every corner must be reliable for four-point PnP
     double keypoint_nms = 0.45;
     int keypoint_input = 640;
 };
 
 struct PoseConfig {
+    // Mean corner residual of the FINAL pose, after yaw_gain. Zero disables
+    // this empirical gate until a threshold is validated on labelled data.
+    double max_reproj_error_px = 0.0;
     bool optimize_yaw = true;       // 1-D yaw search with fixed armor pitch
     double armor_pitch_deg = 15.0;  // RoboMaster armors lean back 15 degrees
     double outpost_armor_pitch_deg = -15.0;  // outpost plates lean the other way
