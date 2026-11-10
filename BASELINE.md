@@ -20,7 +20,7 @@
 | OpenCV | 4.14.0（`C:/opencv/opencv/build`，vc16） |
 | 代码版本 | `edfd512`（工作区干净） |
 | 二进制时间 | 2026-11-04 03:26:51（`build/Release/autoaim_video.exe`） |
-| 配置 | `config/default.yaml`（未改动） |
+| 配置 | `core/config/default.yaml`（未改动） |
 
 ## 2. 复现命令
 
@@ -39,10 +39,10 @@ Linux：
 
 ```bash
 cmake -S . -B build && cmake --build build -j
-./build/autoaim_tests
-./build/autoaim_video ../3.avi --out out
-./build/autoaim_video ../4.avi --out out
-./build/autoaim_sim
+./build/tests/autoaim_tests
+./build/apps/autoaim_video ../3.avi --out out
+./build/apps/autoaim_video ../4.avi --out out
+./build/apps/autoaim_sim
 ```
 
 ## 3. 单元测试
@@ -132,12 +132,12 @@ ALL TESTS PASSED
 ## 8. 已知不可比项
 
 - 更换 OpenCV 主版本、更换 OS、重编译后，仿真数字可能漂移 ±3 pp；
-- 修改 `config/default.yaml` 后，旧基线作废，必须重新生成并提交新的 `reports/`；
+- 修改 `core/config/default.yaml` 后，旧基线作废，必须重新生成并提交新的 `reports/`；
 - 25 fps 视频本身是限制条件，实车相机换 100+ fps 后本基线的"预测误差"不再适用，需要新基线。
 
 ## 9. 下一步
 
-- 阶段一：真实相机标定 → 替换 `config/default.yaml` 里的假设内参（fx=2400、dist=0）；
+- 阶段一：真实相机标定 → 替换 `core/config/default.yaml` 里的假设内参（fx=2400、dist=0）；
 - 阶段二：相机采集 + 串口 + 延迟实测；
 - 每次改动后按 §7 跑一遍，结果贴到 PR 描述里。
 

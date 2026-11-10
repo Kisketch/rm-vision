@@ -15,8 +15,8 @@
 // How: point at a STATIC plate and sweep the gimbal.  For each candidate
 // offset d the plate's world position is R_wg(stamp - d) * p_gimbal; the right
 // d makes those positions stand still.  The estimate is the d that minimises
-// their spread; feed it back as the camera stamp offset (rm-autoaim:
-// MvsConfig::stamp_offset_us; rm-sentry-integration: sentry_robot
+// their spread; feed it back as the camera stamp offset (core:
+// MvsConfig::stamp_offset_us; (sentry: sentry_robot
 // --exposure-offset-ms), added to whatever offset the recording already used.
 #pragma once
 

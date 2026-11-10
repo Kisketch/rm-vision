@@ -3,7 +3,7 @@
 
 One iteration is: sample a parameter set -> run the two real videos and the
 simulator -> score -> keep it only if every gate passes and the score improved
--> optionally write config/default.yaml and commit.
+-> optionally write core/config/default.yaml and commit.
 
 Gates (defaults, overridable) are the same numbers as BASELINE.md section 10:
 a candidate may not lose more than 0.8 pp of hit rate on either video, 0.3
@@ -228,7 +228,7 @@ def main() -> int:
                 if args.commit:
                     msg = (f"auto_improve: score {base.score:.3f} "
                            f"(hit {base.hit}, sim {base.sim:.1f})")
-                    run(["git", "add", "config/default.yaml"], repo)
+                    run(["git", "add", "core/config/default.yaml"], repo)
                     run(["git", "commit", "-m", msg], repo)
         else:
             print("  -> 无改进")

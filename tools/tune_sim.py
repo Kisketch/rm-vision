@@ -8,7 +8,7 @@ cheap, deterministic objective for tuning -- provided we do not overfit to a
 single noise realisation, hence the multi-seed evaluation.
 
 Search: cross-entropy method (CEM) over normalised log/linear parameter bounds,
-starting from the values actually shipped in config/default.yaml (not from the
+starting from the values actually shipped in core/config/default.yaml (not from the
 C++ struct defaults -- several of those are overridden by the YAML).
 
 Objective: 0.6 * mean hit% + 0.4 * worst-scenario hit% + 0.05 * tracking%,
@@ -37,7 +37,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-# name -> (low, high, log_scale). Values come from config/default.yaml.
+# name -> (low, high, log_scale). Values come from core/config/default.yaml.
 # Keys are the --set names used by setParam(); YAML_KEYS maps them to the
 # field names in the YAML file, which do not always match.
 SPACE: dict[str, tuple[float, float, bool]] = {
@@ -219,7 +219,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="CEM tuning on the autoaim simulator")
     ap.add_argument("--exe", default="build/Release/autoaim_sim.exe")
     ap.add_argument("--cwd", default=".")
-    ap.add_argument("--config", default="config/default.yaml")
+    ap.add_argument("--config", default="core/config/default.yaml")
     ap.add_argument("--seconds", type=float, default=10.0)
     ap.add_argument("--noise", type=float, default=0.7)
     ap.add_argument("--dropout", type=float, default=0.05)
@@ -276,7 +276,7 @@ def main() -> int:
             return 0 if ok else 2
         return 0
 
-    print(f"== baseline: config/default.yaml ({len(seeds)} seeds, {args.seconds:g}s/scenario) ==")
+    print(f"== baseline: core/config/default.yaml ({len(seeds)} seeds, {args.seconds:g}s/scenario) ==")
     for k, v in base_vals.items():
         print(f"  {k:18s} {v:g}")
     base = evaluate(exe, cwd, {}, seeds, args.seconds, args.noise, args.dropout)

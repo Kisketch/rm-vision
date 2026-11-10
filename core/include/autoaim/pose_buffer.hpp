@@ -93,8 +93,8 @@ private:
 // attitude lookup: a camera stamp that is late by D relative to the attitude
 // stream rotates every measurement by gimbal_rate x D (largest during slews
 // and plate switches).  Remove the constant with a measured offset - see
-// delay_calibration.hpp (rm-autoaim: MvsConfig::stamp_offset_us;
-// rm-sentry-integration: sentry_robot --calib-delay).  What the median
+// delay_calibration.hpp (core: MvsConfig::stamp_offset_us;
+// (sentry: sentry_robot --calib-delay).  What the median
 // itself removes is jitter.
 class ClockAligner {
 public:

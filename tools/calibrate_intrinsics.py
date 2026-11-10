@@ -108,7 +108,7 @@ def main() -> int:
     ap.add_argument("--images", default="calib")
     ap.add_argument("--pattern", default="9x6")
     ap.add_argument("--square", type=float, default=0.025, help="metres")
-    ap.add_argument("--out", default="config/camera_calib.yaml")
+    ap.add_argument("--out", default="core/config/camera_calib.yaml")
     a = ap.parse_args()
     cols, rows = (int(v) for v in a.pattern.lower().split("x"))
     if a.selftest:

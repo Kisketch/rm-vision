@@ -7,7 +7,7 @@ metric drops past its tolerance. This is the manual gate that CI cannot run,
 because the videos are not in the repository.
 
     python3 tools/regression.py                 # uses build/Release on Windows
-    python3 tools/regression.py --exe build/autoaim_video
+    python3 tools/regression.py --exe build/apps/autoaim_video
 
 Exit code 0 = no regression, 1 = regression or missing input.
 """
@@ -33,12 +33,12 @@ TOL_SIM_PP = 3.0
 
 
 def default_exe() -> Path:
-    for p in ("build/Release/autoaim_video", "build/autoaim_video"):
+    for p in ("build/apps/Release/autoaim_video", "build/apps/autoaim_video"):
         if Path(p + ".exe").is_file():
             return Path(p + ".exe")
         if Path(p).is_file():
             return Path(p)
-    return Path("build/Release/autoaim_video.exe")
+    return Path("build/apps/Release/autoaim_video.exe")
 
 
 def default_video_dir() -> Path:

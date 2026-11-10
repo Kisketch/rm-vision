@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """R-03: validate the camera->gimbal extrinsic before it reaches the robot.
 
-`config/default.yaml` may carry `R_cam2gimbal` and `t_cam2gimbal`. A wrong
+`core/config/default.yaml` may carry `R_cam2gimbal` and `t_cam2gimbal`. A wrong
 rotation does not crash anything: the aim point just ends up one plate off, and
 every tuning experiment afterwards is meaningless. This script checks the
 numbers you are about to flash.
@@ -15,7 +15,7 @@ Checks (all must pass):
 
 Usage:
     python3 tools/check_extrinsics.py --selftest
-    python3 tools/check_extrinsics.py --config config/default.yaml
+    python3 tools/check_extrinsics.py --config core/config/default.yaml
 """
 
 from __future__ import annotations
@@ -120,7 +120,7 @@ def selftest() -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", default="config/default.yaml")
+    ap.add_argument("--config", default="core/config/default.yaml")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
     if args.selftest:
