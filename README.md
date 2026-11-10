@@ -9,7 +9,9 @@ RoboMaster 视觉自瞄的统一代码仓：步兵/英雄与哨兵共用同一�
 [`docs/monorepo_migration.md`](docs/monorepo_migration.md)；旧两仓已归档
 只读，历史留在原仓。作业仓 `rm-armor-detection` 与数据仓 `rm-videos`
 不在本仓范围内。项目叙事（结果、评测方法、调参日志，原主仓 README）见
-[`docs/pipeline_and_tuning.md`](docs/pipeline_and_tuning.md)。
+[`docs/pipeline_and_tuning.md`](docs/pipeline_and_tuning.md)。全仓逐目录
+索引见 [`docs/INDEX.md`](docs/INDEX.md)，完整性审计（每个源文件的去向
+对账）见 [`docs/completeness_audit_2026-11.md`](docs/completeness_audit_2026-11.md)。
 
 ## 目录表
 

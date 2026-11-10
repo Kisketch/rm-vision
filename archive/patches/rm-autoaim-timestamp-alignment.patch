@@ -1,0 +1,772 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index cb8cb4a..7459c0e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -13,11 +13,29 @@ add_library(autoaim_core STATIC
+     src/config.cpp
+     src/detector.cpp
+     src/pose.cpp
++    src/pose_buffer.cpp
++    src/camera_source.cpp
+     src/tracker.cpp
+     src/ballistics.cpp
+     src/aimer.cpp
+     src/evaluation.cpp
+     src/draw.cpp)
++
++# Optional Hikvision MVS camera source (G-02 step 1). Off by default so the
++# offline pipeline builds anywhere; enable on the robot with the SDK path:
++#   cmake -DAUTOAIM_WITH_MVS=ON -DMVS_ROOT=/opt/MVS ..
++option(AUTOAIM_WITH_MVS "Build the Hikvision MVS camera source" OFF)
++if (AUTOAIM_WITH_MVS)
++    set(MVS_ROOT "/opt/MVS" CACHE PATH "Hikvision MVS SDK root")
++    find_path(MVS_INCLUDE_DIR MvCameraControl.h HINTS ${MVS_ROOT}/include)
++    find_library(MVS_LIBRARY MvCameraControl HINTS ${MVS_ROOT}/lib/64 ${MVS_ROOT}/lib)
++    if (NOT MVS_INCLUDE_DIR OR NOT MVS_LIBRARY)
++        message(FATAL_ERROR "AUTOAIM_WITH_MVS=ON but the MVS SDK was not found under ${MVS_ROOT}")
++    endif()
++    target_include_directories(autoaim_core PUBLIC ${MVS_INCLUDE_DIR})
++    target_link_libraries(autoaim_core PUBLIC ${MVS_LIBRARY})
++    target_compile_definitions(autoaim_core PUBLIC AUTOAIM_WITH_MVS)
++endif()
+ target_include_directories(autoaim_core PUBLIC include ${OpenCV_INCLUDE_DIRS})
+ target_link_libraries(autoaim_core PUBLIC ${OpenCV_LIBS})
+ target_compile_definitions(autoaim_core PUBLIC AUTOAIM_ROOT="${CMAKE_CURRENT_SOURCE_DIR}" _USE_MATH_DEFINES
+diff --git a/docs/timestamp_alignment.md b/docs/timestamp_alignment.md
+new file mode 100644
+index 0000000..3ef2846
+--- /dev/null
++++ b/docs/timestamp_alignment.md
+@@ -0,0 +1,55 @@
++# 时间戳与姿态对齐：实现说明（G-02 落地步骤 1–2）
++
++`docs/timestamp_design.md`（G-02）给出了预算，本文件说明代码如何落地其中的
++第 1、2 步，以及还差什么。第 3 步（端到端延迟实测）和第 4 步（把实测值写回
++`aimer.latency` 并跑回归）不在本次范围内，仍按 G-02 原文执行。
++
++## 新增模块
++
++| 文件 | 内容 |
++| --- | --- |
++| `include/autoaim/pose_buffer.hpp` / `src/pose_buffer.cpp` | `PoseBuffer`：带时间戳的云台姿态环形缓冲，查询时做四元数 SLERP 插值；`ClockAligner`：远端时钟（MCU/相机设备时钟）到主机时钟的偏移估计（最近样本差值的中位数，抗传输离群）；四元数工具（SLERP、欧拉角 ZYX→四元数、→旋转矩阵） |
++| `include/autoaim/camera_source.hpp` / `src/camera_source.cpp` | `CameraSource` 统一采集接口：每帧输出图像 + **曝光中心时刻**（主机时钟）+ 是否硬件时间戳。实现：`VideoFileSource`（离线，合成时间戳，与现有 app 口径一致）、`DeviceSource`（UVC/V4L2 近似戳，明确标注不满足预算）、`MvsSource`（海康 MVS，`AUTOAIM_WITH_MVS=ON` 时编译） |
++
++## 对齐链路（上车时的接法）
++
++1. 相机侧：`MvsSource` 取帧时读取相机设备时间戳（`nTimeStampHigh/Low` ÷
++   `TimestampTickFrequency`），每帧用 `ClockAligner` 与主机 `steady_clock`
++   配对更新偏移，曝光中心 = 设备曝光起始 + `exposure_us/2`，换算到主机时钟。
++   恒定传输延迟会折进偏移与 `aimer.latency` 的实测值里（G-02 第 3 步测的
++   正是端到端总量），对齐预算约束的是**抖动**，不是这个恒定项。
++2. 姿态侧：串口接收线程把每帧 IMU 姿态转成四元数（下位机给欧拉角时用
++   `quatFromYawPitchRoll`），时间戳经同一个 `ClockAligner` 思路换算到主机
++   时钟后 `PoseBuffer::push`。
++3. 视觉侧：处理一帧时用 `pose_buffer.query(frame.exposure_stamp, q)` 取
++   该帧曝光时刻的云台姿态，再由 `quatToMat(q)` 得到旋转矩阵进入位姿解算。
++   `query` 返回 false（戳超出覆盖范围或两样本间隔超过 `max_gap`，即串口
++   丢帧）时**不要**用旧姿态凑数：跳过该帧或至少禁止开火，并计数上报——
++   这正是旧实现「取最新值」会悄悄引入整段串口周期误差的地方。
++
++哨兵仓 `apps/sentry_robot.cpp` 现在的 `stamp = nowSeconds()` +
++`serial->query(stamp, …)` 取当前值，应替换为上面的 2、3 步；串口协议本身
++不需要改（已带 yaw/pitch/roll），只是接收侧要把每帧姿态**连同其时间戳**
++存进缓冲，而不是只留最新一帧。
++
++## 验收（对应 G-02 验收线）
++
++- 单元测试 `testPoseBuffer`：3 rad/s 匀速旋转、200 Hz 姿态样本下，插值
++  姿态与真值的夹角误差须 < 0.3 ms 等效的 0.0009 rad（匀速旋转时 SLERP
++  理论上精确）；同时断言「取最新样本」的误差比插值大 10 倍以上，作为
++  对照组防止以后有人把插值改回取最新值。
++- `testClockAligner`：带 ±1 ms 高斯抖动和周期性 +50 ms 离群的配对样本，
++  中位数偏移误差须 < 2 ms（实测应远小于此，该线只是门禁）。
++- 上车验收仍按 G-02 第 4 步：实测延迟写回配置后跑 `tools/regression.py`，
++  命中率不得回退。
++
++## 未包含 / 待办
++
++- MVS 部分在本仓库的离线环境**没有 SDK、未编译验证**，需要在装有 MVS 的
++  机器上首次编译核对（API 按 MVS 4.x 写：`MV_CC_GetImageBuffer`、
++  `MV_FRAME_OUT_INFO_EX` 的设备时间戳字段、`TimestampTickFrequency` 节点）。
++  相机若设置成所列之外的像素格式，`grab` 会返回 false，需要按需补
++  `MV_CC_ConvertPixelType` 路径。
++- 硬件触发模式已留开关（`MvsConfig::hardware_trigger`，Line0），触发信号
++  与曝光时刻的对应关系要按 G-02 第 1 步在实机上确认。
++- PTP/chrony 主机时钟对齐（G-02 第 1 步后半）是部署配置，不在代码内。
+diff --git a/include/autoaim/camera_source.hpp b/include/autoaim/camera_source.hpp
+new file mode 100644
+index 0000000..34de29e
+--- /dev/null
++++ b/include/autoaim/camera_source.hpp
+@@ -0,0 +1,105 @@
++// Camera acquisition with exposure timestamps.
++//
++// Implements step 1 of docs/timestamp_design.md (G-02): every frame leaves
++// this interface carrying the host-clock time of its *exposure centre*, so
++// the pose side can interpolate the gimbal pose at that instant (see
++// pose_buffer.hpp) instead of guessing with "now".
++//
++// Sources without a hardware timestamp (video files, plain UVC devices)
++// still produce stamps, but flag them with hw_stamp = false: they are fine
++// for offline evaluation and must not be treated as meeting the G-02 budget
++// (exposure jitter sigma <= 0.3 ms) on a real robot.
++#pragma once
++
++#include <opencv2/core.hpp>
++
++#include <cstdint>
++#include <memory>
++#include <string>
++
++namespace autoaim {
++
++struct SourceFrame {
++    cv::Mat image;
++    double exposure_stamp = 0.0;  // seconds, host steady clock, exposure centre
++    std::uint64_t index = 0;
++    bool hw_stamp = false;  // stamp came from the camera's own clock (aligned)
++};
++
++class CameraSource {
++public:
++    virtual ~CameraSource() = default;
++    // Blocking read of the next frame. False on end-of-stream / fatal error.
++    virtual bool grab(SourceFrame& out) = 0;
++    virtual double fps() const = 0;
++    virtual std::string name() const = 0;
++};
++
++// Offline evaluation: stamps are synthetic (index / fps), exactly like the
++// existing apps compute them, so offline numbers stay comparable.
++class VideoFileSource : public CameraSource {
++public:
++    explicit VideoFileSource(const std::string& path);
++    ~VideoFileSource() override;
++    bool grab(SourceFrame& out) override;
++    double fps() const override { return fps_; }
++    std::string name() const override { return "video:" + path_; }
++
++private:
++    std::string path_;
++    double fps_ = 0.0;
++    std::uint64_t index_ = 0;
++    void* cap_ = nullptr;  // cv::VideoCapture, hidden to keep videoio out of this header
++};
++
++// Live UVC / V4L2 device through cv::VideoCapture. The stamp is the host
++// receipt time minus half the nominal frame period - an approximation whose
++// jitter does NOT meet the G-02 budget; it exists so the robot app can run
++// before the MVS source is available, with the limitation explicit in data
++// (hw_stamp stays false).
++class DeviceSource : public CameraSource {
++public:
++    explicit DeviceSource(int index, double nominal_fps = 0.0);
++    ~DeviceSource() override;
++    bool grab(SourceFrame& out) override;
++    double fps() const override { return fps_; }
++    std::string name() const override { return "device"; }
++
++private:
++    double fps_ = 0.0;
++    std::uint64_t index_ = 0;
++    void* cap_ = nullptr;  // cv::VideoCapture
++};
++
++#ifdef AUTOAIM_WITH_MVS
++// Hikvision industrial camera (the MV-CS016-10UC of G-02) through the MVS
++// SDK. The frame's device timestamp is converted to the host clock with a
++// ClockAligner fed on every frame, and the stamp is moved to the exposure
++// centre (+ exposure/2). Requires the MVS SDK at build time:
++//   cmake -DAUTOAIM_WITH_MVS=ON -DMVS_ROOT=<sdk dir> ...
++struct MvsConfig {
++    int device_index = 0;
++    double exposure_us = 1500.0;
++    double frame_rate = 165.0;  // matches the reality params used by SMBU pb2025
++    bool hardware_trigger = false;  // true: external trigger starts exposure
++};
++
++class MvsSource : public CameraSource {
++public:
++    explicit MvsSource(const MvsConfig& cfg);
++    ~MvsSource() override;
++    MvsSource(const MvsSource&) = delete;
++    MvsSource& operator=(const MvsSource&) = delete;
++    bool grab(SourceFrame& out) override;
++    double fps() const override { return cfg_.frame_rate; }
++    std::string name() const override { return "mvs"; }
++
++private:
++    MvsConfig cfg_;
++    std::uint64_t index_ = 0;
++    class Impl;
++    std::unique_ptr<Impl> impl_;
++};
++#endif  // AUTOAIM_WITH_MVS
++
++}  // namespace autoaim
+diff --git a/include/autoaim/pose_buffer.hpp b/include/autoaim/pose_buffer.hpp
+new file mode 100644
+index 0000000..eb0db53
+--- /dev/null
++++ b/include/autoaim/pose_buffer.hpp
+@@ -0,0 +1,100 @@
++// Timestamped gimbal-pose ring buffer with quaternion interpolation.
++//
++// Implements step 2 of docs/timestamp_design.md (G-02): the serial link delivers
++// IMU quaternions with timestamps; the pose that belongs to a frame is the one
++// interpolated at the frame's *exposure* timestamp, not the newest sample.
++// Design budget from that document: image->pose alignment error <= 0.3 ms,
++// which at a 3 rad/s spin is ~0.05 deg - interpolation between bracketing
++// samples meets it easily, "take the latest sample" does not (up to one full
++// serial period of error, e.g. 10 ms at 100 Hz = 1.7 deg).
++//
++// Frames: world is gimbal-centred, x forward, y left, z up (see types.hpp).
++// Quaternions are (w, x, y, z), unit length, rotating world -> gimbal or the
++// inverse - the buffer is convention-agnostic, but every sample pushed into
++// one buffer must use the same convention.
++#pragma once
++
++#include <opencv2/core.hpp>
++
++#include <cstddef>
++#include <deque>
++#include <mutex>
++
++namespace autoaim {
++
++// Unit quaternion, (w, x, y, z).
++using Quat = cv::Vec4d;
++
++Quat normalizeQuat(Quat q);
++// Spherical linear interpolation, t in [0, 1]. Handles the double cover
++// (q and -q are the same rotation) by flipping b onto a's hemisphere.
++Quat slerpQuat(const Quat& a, const Quat& b, double t);
++// Rotation angle between two orientations, radians in [0, pi].
++double quatAngleBetween(const Quat& a, const Quat& b);
++// ZYX Euler -> quaternion: yaw about z, then pitch about y, then roll about x.
++// Matches the world frame above (x forward, y left, z up) and the yaw/pitch/
++// roll triples the serial protocol already carries.
++Quat quatFromYawPitchRoll(double yaw, double pitch, double roll);
++cv::Matx33d quatToMat(const Quat& q);
++
++struct GimbalPoseSample {
++    double stamp = 0.0;  // seconds, host clock (see ClockAligner)
++    Quat quat{1.0, 0.0, 0.0, 0.0};
++};
++
++// Fixed-capacity, time-ordered buffer of gimbal pose samples.
++// Thread-safe: the serial thread pushes, the vision thread queries.
++class PoseBuffer {
++public:
++    // capacity: samples kept (at 200 Hz, 512 samples cover ~2.5 s).
++    // max_gap:  bracketing samples farther apart than this are NOT
++    //           interpolated across - a gap that large means dropped serial
++    //           frames, and a pose guessed across it can be worse than none.
++    explicit PoseBuffer(std::size_t capacity = 512, double max_gap = 0.05);
++
++    // Insert a sample. Out-of-order arrivals (serial jitter) are placed at
++    // their sorted position; a sample with an existing stamp replaces it.
++    void push(GimbalPoseSample s);
++
++    // Interpolated pose at `stamp`. Returns false when the stamp is outside
++    // the buffered range or the bracketing gap exceeds max_gap; the caller
++    // decides the fallback (skip the frame, or hold fire) - silently using a
++    // stale pose is exactly the failure mode this class exists to remove.
++    bool query(double stamp, Quat& out) const;
++    // As above, and reports the bracketing gap (s) for logging/acceptance.
++    bool query(double stamp, Quat& out, double& gap) const;
++
++    std::size_t size() const;
++    bool empty() const;
++    double oldestStamp() const;  // 0 when empty
++    double newestStamp() const;  // 0 when empty
++
++private:
++    std::deque<GimbalPoseSample> buf_;
++    std::size_t capacity_;
++    double max_gap_;
++    mutable std::mutex mu_;
++};
++
++// Maps a remote clock (MCU time, camera device time) onto the host clock.
++// The offset is the median of the most recent (local - remote) pair
++// differences, which rejects the occasional long transfer. Any *constant*
++// transfer delay folds into the offset - harmless, because it is also part
++// of the end-to-end latency that aimer.latency is measured against (G-02
++// step 3). What this removes is jitter, which is what the budget limits.
++class ClockAligner {
++public:
++    explicit ClockAligner(std::size_t window = 64);
++
++    void addPair(double remote_stamp, double local_stamp);
++    bool ready() const;
++    double offset() const;  // local - remote; 0 when not ready
++    double toLocal(double remote_stamp) const { return remote_stamp + offset(); }
++    void reset();
++
++private:
++    std::deque<double> diffs_;
++    std::size_t window_;
++};
++
++}  // namespace autoaim
+diff --git a/src/camera_source.cpp b/src/camera_source.cpp
+new file mode 100644
+index 0000000..43ba42e
+--- /dev/null
++++ b/src/camera_source.cpp
+@@ -0,0 +1,204 @@
++#include "autoaim/camera_source.hpp"
++
++#include <opencv2/imgproc.hpp>
++#include <opencv2/videoio.hpp>
++
++#include <chrono>
++#include <cstdio>
++#include <cstring>
++#include <stdexcept>
++
++#include "autoaim/pose_buffer.hpp"
++
++namespace autoaim {
++
++namespace {
++
++double steadySeconds() {
++    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
++}
++
++cv::VideoCapture& capOf(void* p) { return *static_cast<cv::VideoCapture*>(p); }
++
++}  // namespace
++
++// ---------------------------------------------------------------- VideoFile
++
++VideoFileSource::VideoFileSource(const std::string& path) : path_(path) {
++    auto* cap = new cv::VideoCapture(path);
++    if (!cap->isOpened()) {
++        delete cap;
++        throw std::runtime_error("cannot open video " + path);
++    }
++    cap_ = cap;
++    fps_ = cap->get(cv::CAP_PROP_FPS);
++    if (!(fps_ > 0) || fps_ > 1000) fps_ = 25.0;
++}
++
++VideoFileSource::~VideoFileSource() { delete static_cast<cv::VideoCapture*>(cap_); }
++
++bool VideoFileSource::grab(SourceFrame& out) {
++    cv::Mat frame;
++    if (!capOf(cap_).read(frame)) return false;
++    out.image = frame;
++    out.exposure_stamp = index_ / fps_;
++    out.index = index_++;
++    out.hw_stamp = false;
++    return true;
++}
++
++// ------------------------------------------------------------------- Device
++
++DeviceSource::DeviceSource(int index, double nominal_fps) {
++    auto* cap = new cv::VideoCapture(index, cv::CAP_V4L2);
++    if (!cap->isOpened()) {
++        delete cap;
++        throw std::runtime_error("cannot open camera device");
++    }
++    cap_ = cap;
++    fps_ = nominal_fps > 0 ? nominal_fps : cap->get(cv::CAP_PROP_FPS);
++    if (!(fps_ > 0) || fps_ > 1000) fps_ = 30.0;
++}
++
++DeviceSource::~DeviceSource() { delete static_cast<cv::VideoCapture*>(cap_); }
++
++bool DeviceSource::grab(SourceFrame& out) {
++    cv::Mat frame;
++    if (!capOf(cap_).read(frame)) return false;
++    // Receipt time minus half a frame period approximates the exposure
++    // centre of a free-running UVC camera. Jitter is milliseconds, not the
++    // 0.3 ms of the G-02 budget - hw_stamp stays false so nothing downstream
++    // can mistake this for an aligned stamp.
++    out.image = frame;
++    out.exposure_stamp = steadySeconds() - 0.5 / fps_;
++    out.index = index_++;
++    out.hw_stamp = false;
++    return true;
++}
++
++// ---------------------------------------------------------------------- MVS
++#ifdef AUTOAIM_WITH_MVS
++
++#include "MvCameraControl.h"
++
++namespace {
++
++std::string mvError(const char* what, int code) {
++    char buf[160];
++    std::snprintf(buf, sizeof(buf), "MVS %s failed: 0x%08x", what, static_cast<unsigned>(code));
++    return buf;
++}
++
++}  // namespace
++
++class MvsSource::Impl {
++public:
++    void* handle = nullptr;
++    ClockAligner aligner;
++    double tick_freq = 1.0e9;  // replaced by the camera's TimestampTickFrequency
++
++    ~Impl() { close(); }
++
++    void close() {
++        if (!handle) return;
++        MV_CC_StopGrabbing(handle);
++        MV_CC_CloseDevice(handle);
++        MV_CC_DestroyHandle(handle);
++        handle = nullptr;
++    }
++
++    void open(const MvsConfig& cfg) {
++        MV_CC_DEVICE_INFO_LIST list;
++        std::memset(&list, 0, sizeof(list));
++        int ret = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &list);
++        if (ret != MV_OK) throw std::runtime_error(mvError("EnumDevices", ret));
++        if (cfg.device_index < 0 || static_cast<unsigned>(cfg.device_index) >= list.nDeviceNum)
++            throw std::runtime_error("MVS device index out of range");
++        ret = MV_CC_CreateHandle(&handle, list.pDeviceInfo[cfg.device_index]);
++        if (ret != MV_OK) throw std::runtime_error(mvError("CreateHandle", ret));
++        ret = MV_CC_OpenDevice(handle, MV_ACCESS_Exclusive, 0);
++        if (ret != MV_OK) throw std::runtime_error(mvError("OpenDevice", ret));
++
++        // GigE: use the recommended packet size when the camera offers one.
++        const int packet = MV_CC_GetOptimalPacketSize(handle);
++        if (packet > 0) MV_CC_SetIntValueEx(handle, "GevSCPSPacketSize", packet);
++
++        if (cfg.hardware_trigger) {
++            MV_CC_SetEnumValueByString(handle, "TriggerMode", "On");
++            MV_CC_SetEnumValueByString(handle, "TriggerSource", "Line0");
++        } else {
++            MV_CC_SetEnumValueByString(handle, "TriggerMode", "Off");
++        }
++        MV_CC_SetEnumValueByString(handle, "ExposureAuto", "Off");
++        MV_CC_SetFloatValue(handle, "ExposureTime", static_cast<float>(cfg.exposure_us));
++        MV_CC_SetBoolValue(handle, "AcquisitionFrameRateEnable", true);
++        MV_CC_SetFloatValue(handle, "AcquisitionFrameRate", static_cast<float>(cfg.frame_rate));
++
++        MVCC_INTVALUE_EX tick;
++        std::memset(&tick, 0, sizeof(tick));
++        if (MV_CC_GetIntValueEx(handle, "TimestampTickFrequency", &tick) == MV_OK && tick.nCurValue > 0)
++            tick_freq = static_cast<double>(tick.nCurValue);
++
++        ret = MV_CC_StartGrabbing(handle);
++        if (ret != MV_OK) throw std::runtime_error(mvError("StartGrabbing", ret));
++    }
++};
++
++MvsSource::MvsSource(const MvsConfig& cfg) : cfg_(cfg), impl_(new Impl) {
++    try {
++        impl_->open(cfg);
++    } catch (...) {
++        impl_->close();
++        throw;
++    }
++}
++
++MvsSource::~MvsSource() = default;
++
++bool MvsSource::grab(SourceFrame& out) {
++    MV_FRAME_OUT frame;
++    std::memset(&frame, 0, sizeof(frame));
++    const int ret = MV_CC_GetImageBuffer(impl_->handle, &frame, 1000);
++    if (ret != MV_OK) return false;
++
++    const MV_FRAME_OUT_INFO_EX& info = frame.stFrameInfo;
++    const std::uint64_t ticks =
++        (static_cast<std::uint64_t>(info.nTimeStampHigh) << 32) | info.nTimeStampLow;
++    const double device_start = static_cast<double>(ticks) / impl_->tick_freq;
++    impl_->aligner.addPair(device_start, steadySeconds());
++    // Device stamp = start of exposure; the pose that belongs to the image
++    // is the one at its centre.
++    out.exposure_stamp = impl_->aligner.toLocal(device_start) + cfg_.exposure_us * 0.5e-6;
++    out.index = index_++;
++    out.hw_stamp = true;
++
++    const int w = info.nWidth, h = info.nHeight;
++    const cv::Mat raw(h, w, CV_8UC1, frame.pBufAddr);
++    bool ok = true;
++    switch (info.enPixelType) {
++        case PixelType_Gvsp_Mono8:
++            out.image = raw.clone();
++            break;
++        case PixelType_Gvsp_BayerRG8:
++            cv::cvtColor(raw, out.image, cv::COLOR_BayerRG2BGR);
++            break;
++        case PixelType_Gvsp_RGB8_Packed:
++            cv::cvtColor(cv::Mat(h, w, CV_8UC3, frame.pBufAddr), out.image, cv::COLOR_RGB2BGR);
++            break;
++        case PixelType_Gvsp_BGR8_Packed:
++            out.image = cv::Mat(h, w, CV_8UC3, frame.pBufAddr).clone();
++            break;
++        case PixelType_Gvsp_YUV422_Packed:
++            cv::cvtColor(cv::Mat(h, w, CV_8UC2, frame.pBufAddr), out.image, cv::COLOR_YUV2BGR_Y422);
++            break;
++        default:
++            ok = false;  // add a ConvertPixelType path if the camera is set to another format
++            break;
++    }
++    MV_CC_FreeImageBuffer(impl_->handle, &frame);
++    return ok;
++}
++
++#endif  // AUTOAIM_WITH_MVS
++
++}  // namespace autoaim
+diff --git a/src/pose_buffer.cpp b/src/pose_buffer.cpp
+new file mode 100644
+index 0000000..1fbe3a0
+--- /dev/null
++++ b/src/pose_buffer.cpp
+@@ -0,0 +1,155 @@
++#include "autoaim/pose_buffer.hpp"
++
++#include <algorithm>
++#include <cmath>
++#include <vector>
++
++namespace autoaim {
++
++namespace {
++
++Quat quatMul(const Quat& a, const Quat& b) {
++    // Hamilton product, (w, x, y, z).
++    return {a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
++            a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
++            a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1],
++            a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]};
++}
++
++Quat quatAxisAngle(double ax, double ay, double az, double angle) {
++    const double s = std::sin(angle / 2);
++    return {std::cos(angle / 2), ax * s, ay * s, az * s};
++}
++
++}  // namespace
++
++Quat normalizeQuat(Quat q) {
++    const double n = std::sqrt(q.dot(q));
++    if (n < 1e-12) return {1.0, 0.0, 0.0, 0.0};
++    return q / n;
++}
++
++Quat slerpQuat(const Quat& a, const Quat& b, double t) {
++    Quat bb = b;
++    double dot = a.dot(b);
++    if (dot < 0) {  // same rotation, opposite hemisphere: take the short arc
++        bb = -b;
++        dot = -dot;
++    }
++    if (dot > 0.9995) {  // tiny angle: linear blend is indistinguishable
++        return normalizeQuat(a + t * (bb - a));
++    }
++    dot = std::min(1.0, dot);
++    const double theta = std::acos(dot);
++    const double s = std::sin(theta);
++    const double wa = std::sin((1 - t) * theta) / s;
++    const double wb = std::sin(t * theta) / s;
++    return wa * a + wb * bb;
++}
++
++double quatAngleBetween(const Quat& a, const Quat& b) {
++    const double dot = std::min(1.0, std::abs(normalizeQuat(a).dot(normalizeQuat(b))));
++    return 2 * std::acos(dot);
++}
++
++Quat quatFromYawPitchRoll(double yaw, double pitch, double roll) {
++    const Quat qz = quatAxisAngle(0, 0, 1, yaw);
++    const Quat qy = quatAxisAngle(0, 1, 0, pitch);
++    const Quat qx = quatAxisAngle(1, 0, 0, roll);
++    return quatMul(qz, quatMul(qy, qx));
++}
++
++cv::Matx33d quatToMat(const Quat& q) {
++    const Quat u = normalizeQuat(q);
++    const double w = u[0], x = u[1], y = u[2], z = u[3];
++    return {1 - 2 * (y * y + z * z), 2 * (x * y - z * w),     2 * (x * z + y * w),
++            2 * (x * y + z * w),     1 - 2 * (x * x + z * z), 2 * (y * z - x * w),
++            2 * (x * z - y * w),     2 * (y * z + x * w),     1 - 2 * (x * x + y * y)};
++}
++
++PoseBuffer::PoseBuffer(std::size_t capacity, double max_gap)
++    : capacity_(capacity == 0 ? 1 : capacity), max_gap_(max_gap) {}
++
++void PoseBuffer::push(GimbalPoseSample s) {
++    s.quat = normalizeQuat(s.quat);
++    std::lock_guard<std::mutex> lock(mu_);
++    // Serial samples normally arrive in order; only walk back over the few
++    // that a jittered arrival could have overtaken.
++    auto it = buf_.end();
++    while (it != buf_.begin() && (it - 1)->stamp > s.stamp) --it;
++    if (it != buf_.begin() && (it - 1)->stamp == s.stamp) {
++        (it - 1)->quat = s.quat;  // re-stamped sample replaces, never duplicates
++        return;
++    }
++    buf_.insert(it, s);
++    while (buf_.size() > capacity_) buf_.pop_front();
++}
++
++bool PoseBuffer::query(double stamp, Quat& out) const {
++    double gap = 0;
++    return query(stamp, out, gap);
++}
++
++bool PoseBuffer::query(double stamp, Quat& out, double& gap) const {
++    std::lock_guard<std::mutex> lock(mu_);
++    if (buf_.empty() || stamp < buf_.front().stamp || stamp > buf_.back().stamp) return false;
++    // First sample with stamp >= query stamp.
++    std::size_t lo = 0, hi = buf_.size();
++    while (lo < hi) {
++        const std::size_t mid = (lo + hi) / 2;
++        if (buf_[mid].stamp < stamp) lo = mid + 1; else hi = mid;
++    }
++    if (lo < buf_.size() && buf_[lo].stamp == stamp) {
++        out = buf_[lo].quat;
++        gap = 0;
++        return true;
++    }
++    // lo >= 1 here: stamp > front was checked above and no exact match exists.
++    const GimbalPoseSample& s1 = buf_[lo];
++    const GimbalPoseSample& s0 = buf_[lo - 1];
++    gap = s1.stamp - s0.stamp;
++    if (gap > max_gap_) return false;
++    out = slerpQuat(s0.quat, s1.quat, (stamp - s0.stamp) / gap);
++    return true;
++}
++
++std::size_t PoseBuffer::size() const {
++    std::lock_guard<std::mutex> lock(mu_);
++    return buf_.size();
++}
++
++bool PoseBuffer::empty() const {
++    std::lock_guard<std::mutex> lock(mu_);
++    return buf_.empty();
++}
++
++double PoseBuffer::oldestStamp() const {
++    std::lock_guard<std::mutex> lock(mu_);
++    return buf_.empty() ? 0.0 : buf_.front().stamp;
++}
++
++double PoseBuffer::newestStamp() const {
++    std::lock_guard<std::mutex> lock(mu_);
++    return buf_.empty() ? 0.0 : buf_.back().stamp;
++}
++
++ClockAligner::ClockAligner(std::size_t window) : window_(window == 0 ? 1 : window) {}
++
++void ClockAligner::addPair(double remote_stamp, double local_stamp) {
++    diffs_.push_back(local_stamp - remote_stamp);
++    while (diffs_.size() > window_) diffs_.pop_front();
++}
++
++bool ClockAligner::ready() const { return !diffs_.empty(); }
++
++double ClockAligner::offset() const {
++    if (diffs_.empty()) return 0.0;
++    std::vector<double> v(diffs_.begin(), diffs_.end());
++    const std::size_t mid = v.size() / 2;
++    std::nth_element(v.begin(), v.begin() + mid, v.end());
++    return v[mid];
++}
++
++void ClockAligner::reset() { diffs_.clear(); }
++
++}  // namespace autoaim
+diff --git a/tests/test_main.cpp b/tests/test_main.cpp
+index 5043496..b4bf786 100644
+--- a/tests/test_main.cpp
++++ b/tests/test_main.cpp
+@@ -6,6 +6,7 @@
+ #include "autoaim/ballistics.hpp"
+ #include "autoaim/config.hpp"
+ #include "autoaim/pose.hpp"
++#include "autoaim/pose_buffer.hpp"
+ #include "autoaim/tracker.hpp"
+ 
+ using namespace autoaim;
+@@ -124,10 +125,76 @@ static void testTracker() {
+                 x[RobotTracker::R1], x[RobotTracker::R2], r);
+ }
+ 
++static void testPoseBuffer() {
++    // Gimbal spinning at 3 rad/s (the G-02 reference case), pose samples at
++    // 200 Hz like a serial IMU stream, frames queried at in-between times.
++    const double w = 3.0;
++    PoseBuffer buf(512, 0.05);
++    for (int n = 0; n <= 440; ++n) {  // cover the last queried frame stamp (2.063 s)
++        const double t = n * 0.005;
++        buf.push({t, quatFromYawPitchRoll(w * t, 0.0, 0.0)});
++    }
++    double max_aligned = 0, max_latest = 0;
++    for (int n = 0; n < 50; ++n) {
++        const double t = 0.1 + n * 0.04 + 0.003;  // 25 fps frames, off-sample phase
++        Quat q;
++        CHECK(buf.query(t, q), "pose query at %f", t);
++        max_aligned = std::max(max_aligned, quatAngleBetween(q, quatFromYawPitchRoll(w * t, 0, 0)));
++        // The pre-G-02 behaviour: newest sample not newer than the frame.
++        const double t_latest = std::floor(t / 0.005) * 0.005;
++        max_latest = std::max(max_latest, quatAngleBetween(quatFromYawPitchRoll(w * t_latest, 0, 0),
++                                                           quatFromYawPitchRoll(w * t, 0, 0)));
++    }
++    // SLERP between exact samples of a constant-rate rotation is exact; the
++    // G-02 alignment budget is 0.3 ms == 0.0009 rad at 3 rad/s.
++    CHECK(max_aligned < 9e-4, "aligned error %g rad exceeds the G-02 budget", max_aligned);
++    CHECK(max_latest > 10 * max_aligned, "latest-sample error should dwarf aligned: %g vs %g", max_latest,
++          max_aligned);
++    std::printf("pose buffer: aligned err %.2e rad, latest-sample err %.2e rad at 3 rad/s\n", max_aligned,
++                max_latest);
++
++    Quat q;
++    CHECK(!buf.query(-0.1, q), "query before coverage must fail");
++    CHECK(!buf.query(2.3, q), "query after coverage must fail");
++
++    PoseBuffer gappy(16, 0.02);
++    gappy.push({0.0, quatFromYawPitchRoll(0, 0, 0)});
++    gappy.push({0.1, quatFromYawPitchRoll(0.3, 0, 0)});
++    double gap = 0;
++    CHECK(!gappy.query(0.05, q, gap), "query across a dropped-frame gap must fail");
++    CHECK(std::abs(gap - 0.1) < 1e-12, "reported gap %f", gap);
++
++    PoseBuffer ooo(16, 0.05);  // out-of-order arrival still queries correctly
++    ooo.push({0.010, quatFromYawPitchRoll(0.03, 0, 0)});
++    ooo.push({0.000, quatFromYawPitchRoll(0.00, 0, 0)});
++    ooo.push({0.005, quatFromYawPitchRoll(0.015, 0, 0)});
++    CHECK(ooo.query(0.0075, q), "out-of-order query");
++    CHECK(quatAngleBetween(q, quatFromYawPitchRoll(0.0225, 0, 0)) < 1e-9, "out-of-order slerp");
++}
++
++static void testClockAligner() {
++    ClockAligner al(64);
++    std::mt19937 rng(2);
++    std::normal_distribution<double> jitter(0, 0.001);
++    const double true_offset = 12.345;
++    for (int n = 0; n < 64; ++n) {
++        const double remote = n * 0.005;
++        double local = remote + true_offset + jitter(rng);
++        if (n % 17 == 5) local += 0.05;  // transfer outlier the median must reject
++        al.addPair(remote, local);
++    }
++    CHECK(al.ready(), "aligner ready");
++    CHECK(std::abs(al.offset() - true_offset) < 0.002, "offset %f vs %f", al.offset(), true_offset);
++    CHECK(std::abs(al.toLocal(100.0) - (100.0 + true_offset)) < 0.002, "toLocal");
++    std::printf("clock aligner: offset error %.2e s\n", std::abs(al.offset() - true_offset));
++}
++
+ int main() {
+     testBallistics();
+     testPose();
+     testTracker();
++    testPoseBuffer();
++    testClockAligner();
+     if (failures == 0) std::printf("ALL TESTS PASSED\n");
+     return failures == 0 ? 0 : 1;
+ }

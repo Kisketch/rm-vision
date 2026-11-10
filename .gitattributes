@@ -1,0 +1,11 @@
+# 统一行尾：Windows 与 Linux 访问同一工作区时，避免出现“假修改”
+* text=auto eol=lf
+
+# 二进制文件不做行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.onnx binary
+*.avi binary
+*.engine binary
+*.zip binary

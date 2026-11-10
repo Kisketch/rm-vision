@@ -1,0 +1,450 @@
+--- a/include/autoaim/types.hpp
++++ b/include/autoaim/types.hpp
+@@ -80,8 +80,20 @@
+     std::string number;       // "1".."4", "outpost", "guard", "base"
+     float confidence = 0.f;
+     cv::Mat number_img;       // 28x28 binarised digit (debug)
++    Color color = Color::RED;  // team colour the plate was detected as
+ };
+ 
++// Identity of the physical robot a detection belongs to.  The number alone
++// is NOT an identity: both teams field a "3", and a hero's large "1" is a
++// different vehicle from anything else wearing "1".  Trackers and the
++// target manager key on this (colour + number + plate size).
++inline std::string deviceId(const ArmorDetection& det) {
++    return std::string(det.color == Color::RED ? "R" : "B") + det.number +
++           (det.type == ArmorType::LARGE    ? ":large"
++            : det.type == ArmorType::OUTPOST ? ":outpost"
++                                             : ":small");
++}
++
+ // An armor with a 3-D pose in the world frame.
+ struct ArmorObservation {
+     ArmorDetection det;
+--- a/include/autoaim/target.hpp
++++ b/include/autoaim/target.hpp
+@@ -37,7 +37,8 @@
+     struct Entry {
+         std::unique_ptr<RobotTracker> robot;
+         std::unique_ptr<OutpostTracker> outpost;
+-        std::string label;
++        std::string key;    // deviceId of the seed (or "outpost"): matching identity
++        std::string label;  // display label: the plate number (or "outpost")
+         double last_seen = 0.0;
+ 
+         bool active() const;
+--- a/include/autoaim/tracker.hpp
++++ b/include/autoaim/tracker.hpp
+@@ -87,6 +87,7 @@
+     Mat P_;
+     double stamp_ = 0;
+     double last_match_stamp_ = 0;
++    std::string label_;  // plate number for display (id_ is the deviceId)
+     std::string id_;
+     int detect_count_ = 0;
+     int unmatched_with_target_ = 0;
+--- a/include/sentry/serial_protocol.hpp
++++ b/include/sentry/serial_protocol.hpp
+@@ -29,6 +29,22 @@
+ // Returns false for a bad header / short buffer.
+ bool parseAttitude(const uint8_t* data, std::size_t size, AttitudeFrame& out);
+ 
++// --- Optional integrity extension (opt-in, byte-compatible) ---
++// Byte 2 of the attitude frame is unused in the legacy protocol.  A sender
++// supporting the extension stores a CRC-8/SMBUS (poly 0x07) of the payload
++// bytes 3..16 there.  Legacy receivers ignore byte 2, and parseAttitude
++// ignores it too, so the extension only takes effect where a receiver
++// explicitly requires it (SerialPort's require_crc).  Enabling it needs the
++// MCU firmware to fill byte 2; until then run with it off.
++// The control frame has no spare byte, so it cannot carry a CRC without a
++// length change; that stays a future protocol-v2 decision.
++uint8_t crc8(const uint8_t* data, std::size_t size);
++uint8_t attitudeCrc(const uint8_t* frame);  // frame must hold kAttitudeSize bytes
++bool parseAttitudeCrc(const uint8_t* data, std::size_t size, AttitudeFrame& out);
++// Reference packer (the vision side never sends attitude frames; this is
++// the format definition for the MCU side and for tests).
++std::array<uint8_t, kAttitudeSize> packAttitude(const AttitudeFrame& f, bool with_crc);
++
+ // Pack a SerialCommand.  `ui_x` is the fourth int32 (the old yaw-rate/UI slot);
+ // the MCU protocol only has four int32 payloads.
+ std::array<uint8_t, kControlSize> packControl(const SerialCommand& cmd, int32_t ui_x = 0);
+--- a/include/io/serial_port.hpp
++++ b/include/io/serial_port.hpp
+@@ -33,8 +33,11 @@
+ 
+ class SerialPort {
+ public:
++    // require_crc: reject attitude frames whose byte-2 CRC-8 does not check
++    // out.  Only enable once the MCU firmware fills byte 2 (see
++    // serial_protocol.hpp); the legacy sender leaves it 0.
+     SerialPort(std::string device, int baud = 115200, double stamp_delay_s = 0.0015,
+-               double max_gap_s = 0.05);
++               double max_gap_s = 0.05, bool require_crc = false);
+     ~SerialPort();
+ 
+     SerialPort(const SerialPort&) = delete;
+@@ -53,6 +56,7 @@
+     // Diagnostics for the G-02 bench checks.
+     std::uint64_t receivedFrames() const { return received_.load(); }
+     std::uint64_t failedQueries() const { return failed_queries_.load(); }
++    std::uint64_t crcFailures() const { return crc_failures_.load(); }
+     std::size_t samplesBuffered() const { return poses_.size(); }
+ 
+ private:
+@@ -81,6 +85,8 @@
+ 
+     std::atomic<std::uint64_t> received_{0};
+     std::atomic<std::uint64_t> failed_queries_{0};
++    std::atomic<std::uint64_t> crc_failures_{0};
++    bool require_crc_ = false;
+ };
+ 
+ }  // namespace io
+--- a/src/target.cpp
++++ b/src/target.cpp
+@@ -6,6 +6,15 @@
+ 
+ namespace autoaim {
+ 
++namespace {
++// Matching identity of an entry: the outpost is a singleton, robots are
++// keyed by deviceId so a same-number robot of another colour/size can
++// never be associated into the entry (label alone allowed that).
++std::string entryKey(const ArmorDetection& det) {
++    return (det.number == "outpost" || det.type == ArmorType::OUTPOST) ? "outpost" : deviceId(det);
++}
++}  // namespace
++
+ TargetManager::TargetManager(const TrackerConfig& tracker_cfg, const TargetConfig& target_cfg,
+                              const CameraModel& camera)
+     : tracker_cfg_(tracker_cfg), target_cfg_(target_cfg), camera_(camera) {}
+@@ -39,7 +48,7 @@
+     double best_d = std::numeric_limits<double>::max();
+     for (int i = 0; i < static_cast<int>(entries_.size()); ++i) {
+         const Entry& e = entries_[i];
+-        if (e.label != obs.det.number && !(e.outpost && obs.det.number == "outpost")) continue;
++        if (e.key != entryKey(obs.det)) continue;
+         const TargetState s = e.snapshot(stamp);
+         const TrackState st = e.state();
+         if (st == TrackState::LOST && e.last_seen <= 0) continue;
+@@ -94,7 +103,7 @@
+         // a duplicate behind and the duplicate steals observations.
+         int reuse = -1;
+         for (int e = 0; e < static_cast<int>(entries_.size()); ++e) {
+-            if (entries_[e].label != seed.det.number || entries_[e].state() != TrackState::LOST)
++            if (entries_[e].key != entryKey(seed.det) || entries_[e].state() != TrackState::LOST)
+                 continue;
+             const TargetState old = entries_[e].snapshot(frame.stamp);
+             for (int k = 0; k < old.armors_num; ++k) {
+@@ -115,7 +124,7 @@
+         for (int j = i + 1; j < static_cast<int>(frame.armors.size()); ++j) {
+             if (assigned[j]) continue;
+             const ArmorObservation& o = frame.armors[j];
+-            if (o.det.number != seed.det.number) continue;
++            if (entryKey(o.det) != entryKey(seed.det)) continue;
+             if (cv::norm(o.position - seed.position) > 2.0 * target_cfg_.association_gate) continue;
+             init.armors.push_back(o);
+             assigned[j] = true;
+@@ -129,6 +138,7 @@
+         }
+ 
+         Entry e;
++        e.key = entryKey(seed.det);
+         e.label = seed.det.number;
+         if (seed.det.number == "outpost" || seed.det.type == ArmorType::OUTPOST) {
+             e.label = "outpost";
+--- a/src/tracker.cpp
++++ b/src/tracker.cpp
+@@ -110,7 +110,8 @@
+     for (int i = 0; i < N; ++i) P_(i, i) = p0[i] * p0[i];
+     stamp_ = stamp;
+     last_match_stamp_ = stamp;
+-    id_ = obs.det.number;
++    id_ = deviceId(obs.det);
++    label_ = obs.det.number;
+     armor_type = obs.det.type;
+     state_ = TrackState::DETECTING;
+     detect_count_ = 0;
+@@ -261,7 +262,7 @@
+     bool target_seen = false;
+     for (int i = 0; i < static_cast<int>(frame.armors.size()); ++i) {
+         const auto& o = frame.armors[i];
+-        if (o.det.number != id_) continue;
++        if (deviceId(o.det) != id_) continue;
+         target_seen = true;
+         const cv::Matx<double, 4, 4> R = measurementNoise(o);
+         for (int k = 0; k < cfg_.armors_num; ++k) {
+@@ -365,7 +366,7 @@
+     TargetState s;
+     s.valid = state_ != TrackState::LOST;
+     s.id = id_;
+-    s.label = id_;
++    s.label = label_;
+     s.state = state_;
+     s.armors_num = cfg_.armors_num;
+     s.type = armor_type;
+@@ -676,7 +677,7 @@
+     P_(4, 4) = 0.05 * 0.05;
+     P_(1, 1) = P_(3, 3) = P_(5, 5) = 1.0;
+     stamp_ = last_match_ = stamp;
+-    id_ = obs.det.number;
++    id_ = deviceId(obs.det);
+     yaw_ = obs.yaw;
+     armor_type = obs.det.type;
+     active_ = true;
+@@ -710,7 +711,7 @@
+     double best_d = 1e18;
+     for (int i = 0; i < static_cast<int>(frame.armors.size()); ++i) {
+         const auto& o = frame.armors[i];
+-        if (o.det.number != id_) continue;
++        if (deviceId(o.det) != id_) continue;
+         const double d = cv::norm(o.position - position(x_));
+         if (d < best_d) best_d = d, best = i;
+     }
+--- a/src/detector.cpp
++++ b/src/detector.cpp
+@@ -200,6 +200,7 @@
+             ArmorDetection d;
+             d.left = *l;
+             d.right = *r;
++            d.color = l->color;
+             const float center_ratio = static_cast<float>(cv::norm(r->center - l->center)) / avg;
+             d.type = center_ratio > cfg_.large_plate_ratio ? ArmorType::LARGE : ArmorType::SMALL;
+             const float score = angle_diff / cfg_.max_pair_angle_diff_deg +
+--- a/src/evaluation.cpp
++++ b/src/evaluation.cpp
+@@ -143,12 +143,12 @@
+     const auto& B = obs_[f1].armors;
+     std::vector<bool> used_b(B.size(), false);
+     for (const auto& a : A) {
+-        if (!id.empty() && a.det.number != id) continue;
++        if (!id.empty() && deviceId(a.det) != id) continue;
+         int best = -1;
+         double best_d = 1e18;
+         const double gate = 0.6 * cv::norm(a.det.corners[3] - a.det.corners[0]) + 3.0;
+         for (int j = 0; j < static_cast<int>(B.size()); ++j) {
+-            if (used_b[j] || B[j].det.number != a.det.number) continue;
++            if (used_b[j] || deviceId(B[j].det) != deviceId(a.det)) continue;
+             const double d = cv::norm(B[j].det.center - a.det.center);
+             if (d < gate && d < best_d) best_d = d, best = j;
+         }
+@@ -161,7 +161,7 @@
+     }
+     if (w >= 0.5f)
+         for (int j = 0; j < static_cast<int>(B.size()); ++j)
+-            if (!used_b[j] && (id.empty() || B[j].det.number == id)) out.push_back(B[j]);
++            if (!used_b[j] && (id.empty() || deviceId(B[j].det) == id)) out.push_back(B[j]);
+     return true;
+ }
+ 
+@@ -347,7 +347,7 @@
+                 if (c.valid) {
+                     g_sentry.step(c.yaw, c.pitch, dt);
+                     if (c.fire && onTarget(g_sentry, c, states[si].type, scale))
+-                        fireAndJudge(s_sentry, judge, g_sentry, c, states[si].label, f.frame,
++                        fireAndJudge(s_sentry, judge, g_sentry, c, states[si].id, f.frame,
+                                      cfg.aimer.latency, f.stamp, nullptr);
+                 }
+             }
+@@ -413,7 +413,7 @@
+                 const cv::Point2d st_px(f.armors[static_idx].det.center);
+                 const double center_dir = std::atan2(xs[RobotTracker::YC], xs[RobotTracker::XC]);
+                 for (const auto& a : fm.armors) {
+-                    if (a.det.number != robot.id()) continue;
++                    if (deviceId(a.det) != robot.id()) continue;
+                     const cv::Point2d target(a.det.center);
+                     double best = 1e18;
+                     for (int k = 0; k < robot.armorsNum(); ++k) {
+--- a/src/draw.cpp
++++ b/src/draw.cpp
+@@ -112,7 +112,7 @@
+             cv::line(img, a, b, chosen ? cv::Scalar(0, 0, 255) : cv::Scalar(255, 255, 0), chosen ? 3 : 2);
+         }
+         for (const auto& a : obs.armors) {
+-            if (a.det.number != geom.id() && !geom.id().empty()) continue;
++            if (deviceId(a.det) != geom.id() && !geom.id().empty()) continue;
+             cv::circle(img, map(a.position[0], a.position[1]), 3, {0, 255, 0}, -1);
+         }
+         text(img, "top view (1.2 m)", {roi.x + 5, roi.y + S - 8}, {220, 220, 220}, 0.4);
+--- a/src/serial_protocol.cpp
++++ b/src/serial_protocol.cpp
+@@ -42,6 +42,38 @@
+     return true;
+ }
+ 
++uint8_t crc8(const uint8_t* data, std::size_t size) {
++    uint8_t crc = 0;
++    for (std::size_t i = 0; i < size; ++i) {
++        crc ^= data[i];
++        for (int b = 0; b < 8; ++b) crc = (crc & 0x80) ? (crc << 1) ^ 0x07 : crc << 1;
++    }
++    return crc;
++}
++
++uint8_t attitudeCrc(const uint8_t* frame) { return crc8(frame + 3, kAttitudeSize - 3); }
++
++bool parseAttitudeCrc(const uint8_t* data, std::size_t size, AttitudeFrame& out) {
++    if (!data || size < kAttitudeSize) return false;
++    if (data[2] != attitudeCrc(data)) return false;
++    return parseAttitude(data, size, out);
++}
++
++std::array<uint8_t, kAttitudeSize> packAttitude(const AttitudeFrame& f, bool with_crc) {
++    std::array<uint8_t, kAttitudeSize> b{};
++    b[0] = 0xAA;
++    b[1] = 0xBB;
++    constexpr double scale = 180.0 / 3.14159265358979323846 * 10000.0;
++    writeI32(b.data() + 3, static_cast<int32_t>(std::lround(wrapPi(f.yaw) * scale)));
++    writeI32(b.data() + 7, static_cast<int32_t>(std::lround(f.pitch * scale)));
++    // Inverse of the parser's convention: the wire carries roll + pi.
++    writeI32(b.data() + 11, static_cast<int32_t>(std::lround(wrapPi(f.roll + 3.14159265358979323846) * scale)));
++    b[15] = static_cast<uint8_t>(f.color);
++    b[16] = static_cast<uint8_t>(f.armor_or_buff);
++    b[2] = with_crc ? attitudeCrc(b.data()) : 0;
++    return b;
++}
++
+ // 21-byte control frame: AA BB [yaw][pitch][yaw_vel][ui_x] found fire BB
+ // The old AutoArmor::Transmit put the yaw rate into the ui_x slot; keeping that
+ // mapping means the MCU does not need a new parser.
+--- a/src/io/serial_port.cpp
++++ b/src/io/serial_port.cpp
+@@ -42,11 +42,13 @@
+ 
+ }  // namespace
+ 
+-SerialPort::SerialPort(std::string device, int baud, double stamp_delay_s, double max_gap_s)
++SerialPort::SerialPort(std::string device, int baud, double stamp_delay_s, double max_gap_s,
++                       bool require_crc)
+     : device_(std::move(device)),
+       baud_(baud),
+       stamp_delay_s_(stamp_delay_s),
+-      poses_(512, max_gap_s) {
++      poses_(512, max_gap_s),
++      require_crc_(require_crc) {
+     if (openDevice()) thread_ = std::thread(&SerialPort::readerLoop, this);
+ }
+ 
+@@ -123,7 +125,12 @@
+                 continue;
+             }
+             sentry::AttitudeFrame a;
+-            if (sentry::parseAttitude(buf.data() + consumed, sentry::kAttitudeSize, a)) {
++            const bool parsed =
++                require_crc_
++                    ? sentry::parseAttitudeCrc(buf.data() + consumed, sentry::kAttitudeSize, a)
++                    : sentry::parseAttitude(buf.data() + consumed, sentry::kAttitudeSize, a);
++            if (!parsed && require_crc_) ++crc_failures_;
++            if (parsed) {
+                 // The protocol carries no MCU timestamp: stamp on receipt,
+                 // minus the estimated sample->receipt lag.  The quaternion
+                 // uses the setGimbalAttitude convention (Ry angle = -pitch).
+--- a/apps/sentry_robot.cpp
++++ b/apps/sentry_robot.cpp
+@@ -47,6 +47,7 @@
+     double exposure_offset_ms = 0.0;  // live camera: receipt -> exposure lag
+     double stamp_delay_ms = 1.5;      // serial: MCU sample -> host receipt lag
+     double max_gap_ms = 50.0;         // serial: max attitude gap to interpolate
++    bool require_crc = false;         // serial: require the byte-2 CRC-8 extension
+ 
+     for (int i = 1; i < argc; ++i) {
+         const std::string a = argv[i];
+@@ -61,6 +62,7 @@
+         else if (a == "--exposure-offset-ms" && i + 1 < argc) exposure_offset_ms = std::stod(argv[++i]);
+         else if (a == "--stamp-delay-ms" && i + 1 < argc) stamp_delay_ms = std::stod(argv[++i]);
+         else if (a == "--max-gap-ms" && i + 1 < argc) max_gap_ms = std::stod(argv[++i]);
++        else if (a == "--require-crc") require_crc = true;
+         else {
+             std::cerr << "unknown argument: " << a << "\n";
+             return 1;
+@@ -90,7 +92,7 @@
+     std::unique_ptr<io::SerialPort> serial;
+     if (!serial_device.empty())
+         serial = std::make_unique<io::SerialPort>(serial_device, 115200, stamp_delay_ms / 1000.0,
+-                                                  max_gap_ms / 1000.0);
++                                                  max_gap_ms / 1000.0, require_crc);
+ 
+     autoaim::AimCommand last_cmd;
+     double last_valid = -1e9;
+@@ -174,7 +176,8 @@
+     std::cout << "processed " << processed << " frames";
+     if (serial)
+         std::cout << ", attitude misses " << attitude_misses << " (serial received "
+-                  << serial->receivedFrames() << ", failed queries " << serial->failedQueries() << ")";
++                  << serial->receivedFrames() << ", failed queries " << serial->failedQueries()
++                  << ", crc failures " << serial->crcFailures() << ")";
+     std::cout << "\n";
+     return 0;
+ }
+--- a/tests/test_sentry.cpp
++++ b/tests/test_sentry.cpp
+@@ -221,6 +221,33 @@
+     CHECK(b[0] == 0xAA && b[1] == 0xBB && b[20] == 0xBB);
+     CHECK(b[18] == 1 && b[19] == 2);
+     CHECK(b[2] == 0 && b[5] == 111);
++
++    // CRC extension: packAttitude roundtrips (roll exercises the +pi wire
++    // convention), a tampered payload fails the strict parse but still
++    // passes the legacy one, and a legacy frame (byte 2 = 0) is rejected by
++    // the strict parse - which is why require_crc stays opt-in.
++    sentry::AttitudeFrame f;
++    f.yaw = 0.3;
++    f.pitch = -0.12;
++    f.roll = 2.9;
++    f.color = 1;
++    f.armor_or_buff = 0;
++    const auto packed = sentry::packAttitude(f, true);
++    CHECK(packed[2] == sentry::attitudeCrc(packed.data()));
++    sentry::AttitudeFrame g;
++    CHECK(sentry::parseAttitudeCrc(packed.data(), packed.size(), g));
++    CHECK(std::abs(g.yaw - f.yaw) < 2e-4 && std::abs(g.pitch - f.pitch) < 2e-4 &&
++          std::abs(g.roll - f.roll) < 2e-4);
++    CHECK(g.color == 1 && g.armor_or_buff == 0);
++    auto tampered = packed;
++    tampered[5] ^= 0xFF;
++    sentry::AttitudeFrame t;
++    CHECK(!sentry::parseAttitudeCrc(tampered.data(), tampered.size(), t));
++    CHECK(sentry::parseAttitude(tampered.data(), tampered.size(), t));  // legacy ignores byte 2
++    const auto legacy = sentry::packAttitude(f, false);
++    CHECK(legacy[2] == 0);
++    CHECK(!sentry::parseAttitudeCrc(legacy.data(), legacy.size(), t));
++    CHECK(sentry::parseAttitude(legacy.data(), legacy.size(), t));
+ }
+ 
+ }  // namespace
+--- a/docs/device_id_and_crc.md
++++ b/docs/device_id_and_crc.md
+@@ -0,0 +1,33 @@
++# 目标身份唯一化与协议 CRC 扩展（2026-11）
++
++与主仓 `rm-autoaim` 同步的两项正确性改动。
++
++## 目标身份（DeviceId）
++
++此前 `TargetManager` 的条目、两个跟踪器的关联都只按装甲数字比对：
++同号但不同颜色/板型的板（两队都有 "3"，英雄是大板 "1"）会被关联进
++同一条轨迹。现在：
++
++- `autoaim::deviceId(det)`（`types.hpp`）= 颜色 + 数字 + 板型，
++  `ArmorDetection` 新增 `color` 字段，检测器在配对时填入；
++- `RobotTracker` / `PointTracker` 的 `id_` 与关联条件改按 deviceId；
++  `TargetState.label` 仍是纯数字（显示用），`id` 是 deviceId；
++- `TargetManager::Entry` 新增 `key`（deviceId，前哨站为 "outpost"）
++  做全部关联/复用/同种子分组判断，`label` 只作显示；
++- 评测判读与绘制过滤同步改按 deviceId。前哨站跟踪器是单例身份，
++  未改。
++
++## 协议 CRC-8（可选扩展，默认关）
++
++17 字节姿态帧的字节 2 此前未使用。扩展约定：发送方在字节 2 放
++CRC-8/SMBUS（poly 0x07，覆盖字节 3..16 的载荷）。
++
++- `sentry::packAttitude(frame, with_crc)` 是格式参考实现（供下位机
++  与测试用），`parseAttitudeCrc` 是严格解析；旧 `parseAttitude`
++  不看字节 2，行为不变；
++- `io::SerialPort` 新增 `require_crc`（默认 false）与 `crcFailures()`
++  计数；`sentry_robot --require-crc` 打开；
++- **启用前提是下位机固件先填字节 2**，否则所有帧都会被拒收——所以
++  默认关闭，联调时再开；
++- 21 字节控制帧没有空闲字节，加 CRC 必须改帧长，留作协议 v2 决策，
++  本次未动。
