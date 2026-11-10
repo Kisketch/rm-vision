@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install OpenCV
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libopencv-dev \
+            libopencv-core-dev \
+            libopencv-imgproc-dev \
+            libopencv-imgcodecs-dev \
+            libopencv-videoio-dev \
+            libopencv-highgui-dev \
+            libopencv-calib3d-dev \
+            libopencv-features2d-dev \
+            libopencv-flann-dev \
+            libopencv-dnn-dev
+
+      - name: Configure
+        run: cmake -S . -B build
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test (core + sentry + serial)
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Smoke - simulation, infantry config
+        run: ./build/apps/autoaim_sim --config core/config/default.yaml --seconds 5
+
+      - name: Smoke - simulation, sentry config
+        run: ./build/apps/autoaim_sim --config sentry/config/sentry.yaml --seconds 5
