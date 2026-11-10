@@ -24,6 +24,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 
@@ -129,6 +130,71 @@ std::vector<FrameDetections> runDetector(const std::string& video, const Config&
     return out;
 }
 
+// Field-condition stress. Perturbing the cached detections before pose solving
+// answers "what does occlusion / a stalled sensor / a slow camera do to this
+// pipeline?" from one cached run, with no new footage and no re-detection. Every
+// knob is seeded, so a run is reproducible.
+struct StressConfig {
+    double dropout = 0;    // probability that a given plate is not reported
+    double framedrop = 0;  // probability that the whole frame is lost
+    int decimate = 1;      // keep one frame in every n (slower camera, same timeline)
+    double jitter_ms = 0;  // gaussian timestamp error (exposure/capture/transfer sync)
+    unsigned seed = 1;
+    bool any() const { return dropout > 0 || framedrop > 0 || decimate > 1 || jitter_ms > 0; }
+    std::string tag() const {
+        char b[160];
+        std::snprintf(b, sizeof(b), "drop%.2f_frame%.2f_dec%d_jit%.1f_s%u", dropout, framedrop, decimate,
+                      jitter_ms, seed);
+        return b;
+    }
+    std::string describe() const {
+        char b[200];
+        std::snprintf(b, sizeof(b), "dropout %.0f%% per plate, frame loss %.0f%%, 1/%d frames, stamp jitter %.1f ms, seed %u",
+                      100 * dropout, 100 * framedrop, decimate, jitter_ms, seed);
+        return b;
+    }
+};
+
+bool parseStress(const std::string& spec, StressConfig& s) {
+    std::stringstream ss(spec);
+    std::string item;
+    while (std::getline(ss, item, ',')) {
+        const auto eq = item.find('=');
+        if (eq == std::string::npos) return false;
+        const std::string k = item.substr(0, eq);
+        const double v = std::atof(item.c_str() + eq + 1);
+        if (k == "dropout") s.dropout = v;
+        else if (k == "framedrop") s.framedrop = v;
+        else if (k == "decimate") s.decimate = std::max(1, static_cast<int>(std::lround(v)));
+        else if (k == "jitter_ms") s.jitter_ms = v;
+        else if (k == "seed") s.seed = static_cast<unsigned>(std::lround(v));
+        else return false;
+    }
+    return true;
+}
+
+void applyStress(std::vector<FrameDetections>& dets, const StressConfig& s) {
+    if (!s.any()) return;
+    std::mt19937 rng(s.seed);
+    std::uniform_real_distribution<double> coin(0.0, 1.0);
+    std::normal_distribution<double> jitter(0.0, s.jitter_ms * 1e-3);
+    std::vector<FrameDetections> out;
+    out.reserve(dets.size() / static_cast<std::size_t>(s.decimate) + 1);
+    for (std::size_t i = 0; i < dets.size(); i += static_cast<std::size_t>(s.decimate)) {
+        FrameDetections f = dets[i];
+        if (s.jitter_ms > 0) f.stamp += jitter(rng);
+        if (s.framedrop > 0 && coin(rng) < s.framedrop) continue;
+        if (s.dropout > 0) {
+            auto& a = f.armors;
+            a.erase(std::remove_if(a.begin(), a.end(),
+                                   [&](const ArmorDetection&) { return coin(rng) < s.dropout; }),
+                    a.end());
+        }
+        out.push_back(std::move(f));
+    }
+    dets.swap(out);
+}
+
 void writeCsv(const std::string& path, const EvalResult& r) {
     std::ofstream o(path);
     o << "frame,state,xc,yc,zc,vxc,vyc,yaw,w,r1,r2,dz,matched,cmd_valid,center_mode,armor_k,facing_deg,"
@@ -201,7 +267,8 @@ void writeDiagnostics(const std::string& prefix, const Config& cfg,
 int main(int argc, char** argv) {
     if (argc < 2) {
         std::cerr << "usage: autoaim_video <video> [--config cfg.yaml] [--out dir] [--redetect] [--render A:B]\n"
-                     "                     [--camera calibrated.yml] [--diagnostics] [--set key=value]... [--sweep key=v1,v2,...]\n";
+                     "                     [--camera calibrated.yml] [--diagnostics] [--set key=value]... [--sweep key=v1,v2,...]\n"
+                     "                     [--stress dropout=P,framedrop=P,decimate=N,jitter_ms=MS,seed=S]\n";
         return 1;
     }
     const std::string video = argv[1];
@@ -214,6 +281,7 @@ int main(int argc, char** argv) {
     std::vector<std::pair<std::string, double>> sets;
     std::string sweep_key;
     std::vector<double> sweep_vals;
+    StressConfig stress;
     for (int i = 2; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--config" && i + 1 < argc) config_path = argv[++i];
@@ -222,6 +290,12 @@ int main(int argc, char** argv) {
         else if (a == "--redetect") redetect = true;
         else if (a == "--diagnostics") diagnostics = true;
         else if (a == "--render" && i + 1 < argc) std::sscanf(argv[++i], "%d:%d", &render_a, &render_b);
+        else if (a == "--stress" && i + 1 < argc) {
+            if (!parseStress(argv[++i], stress)) {
+                std::cerr << "bad --stress spec " << argv[i] << '\n';
+                return 1;
+            }
+        }
         else if (a == "--set" && i + 1 < argc) {
             const std::string kv = argv[++i];
             const auto eq = kv.find('=');
@@ -317,6 +391,11 @@ int main(int argc, char** argv) {
         std::cout << "detected " << dets.size() << " frames, " << det_ms << " ms/frame -> " << cache << '\n';
     }
 
+    if (stress.any()) {
+        applyStress(dets, stress);
+        std::cout << "stress: " << stress.describe() << " -> " << dets.size() << " frames left\n";
+    }
+
     if (!sweep_key.empty()) {
         std::cout << "| " << sweep_key
                   << " | robot hit% | robot hits/s | point hit% | direct hit% | oracle hit% | pred robot 0.2s | "
@@ -360,6 +439,7 @@ int main(int argc, char** argv) {
 
     const std::string report = formatReport(res, cfg.eval.fps);
     std::cout << "\n" << report;
+    if (stress.any()) std::printf("condition: %s\n", stress.describe().c_str());
     std::printf("timing: pose %.3f ms/frame, trackers+aimers+judge %.3f ms/frame%s\n", pose_ms, eval_ms,
                 det_ms > 0 ? (", detector " + std::to_string(det_ms) + " ms/frame").c_str() : "");
     {

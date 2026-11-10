@@ -131,13 +131,21 @@ ArmorObservation lerpObservation(const ArmorObservation& a, const ArmorObservati
 // Plates at an arbitrary time T: the two frames around T are interpolated, plate
 // by plate (nearest centre). Plates seen in only one of the two frames are used
 // when T is closer to that frame. Returns false if T is outside the recording.
+//
+// The bracket is found by timestamp, not by T*fps: the replay is not guaranteed
+// to be uniformly sampled (dropped frames, cameras that are not 25 fps), and an
+// index computed from time would silently interpolate the wrong pair.
 bool ShotJudge::platesAt(double T, const std::string& id, std::vector<ArmorObservation>& out) const {
     out.clear();
-    const double ft = T * fps_;
-    const int f0 = static_cast<int>(std::floor(ft));
-    const int f1 = f0 + 1;
-    if (f0 < 0 || f1 >= static_cast<int>(obs_.size())) return false;
-    const float w = static_cast<float>(ft - f0);
+    if (obs_.size() < 2) return false;
+    const auto hi = std::upper_bound(obs_.begin(), obs_.end(), T,
+                                     [](double t, const FrameObservations& f) { return t < f.stamp; });
+    if (hi == obs_.begin() || hi == obs_.end()) return false;  // outside the recording
+    const int f1 = static_cast<int>(hi - obs_.begin());
+    const int f0 = f1 - 1;
+    const double span = obs_[f1].stamp - obs_[f0].stamp;
+    const double w_d = span > 1e-9 ? std::clamp((T - obs_[f0].stamp) / span, 0.0, 1.0) : 0.0;
+    const float w = static_cast<float>(w_d);
     const auto& A = obs_[f0].armors;
     const auto& B = obs_[f1].armors;
     std::vector<bool> used_b(B.size(), false);
@@ -182,7 +190,16 @@ ShotResult ShotJudge::judge(double t_depart, double yaw, double pitch, double t_
             if (!platesAt(T, id, plates) || plates.empty()) return ShotResult::UNKNOWN;
         }
     }
-    if (impact_frame) *impact_frame = static_cast<int>(std::lround(T * fps_));
+    if (impact_frame) {
+        // Frame number of the sample nearest to the impact time (frame numbers
+        // are not indices once frames can be dropped).
+        const auto it = std::lower_bound(obs_.begin(), obs_.end(), T,
+                                         [](const FrameObservations& f, double t) { return f.stamp < t; });
+        int idx = static_cast<int>(it - obs_.begin());
+        if (idx >= static_cast<int>(obs_.size())) idx = static_cast<int>(obs_.size()) - 1;
+        if (idx > 0 && std::abs(obs_[idx - 1].stamp - T) < std::abs(obs_[idx].stamp - T)) --idx;
+        *impact_frame = idx >= 0 ? obs_[idx].frame : static_cast<int>(std::lround(T * fps_));
+    }
     double best_miss = 1e18, best_center_d = 1e18;
     ShotResult result = ShotResult::MISS;
     for (const auto& a : plates) {
@@ -288,9 +305,21 @@ EvalResult evaluate(const Config& cfg, const std::vector<FrameObservations>& obs
     std::vector<double> omegas, r1s, r2s, dzs;
     int tracking_frames = 0, frames_with_armor = 0;
     const double scale = cfg.aimer.fire_tolerance_scale;
+    double prev_stamp = obs.empty() ? 0.0 : obs.front().stamp;
 
     for (std::size_t n = 0; n < obs.size(); ++n) {
         const auto& f = obs[n];
+        // Step the simulated gimbal by the time that actually elapsed. It used to
+        // be a constant 1/fps, which silently made every result valid only for a
+        // gapless stream at exactly that rate: after a dropped frame the gimbal
+        // moved half the distance it should have and every shot missed. Sub-
+        // nanosecond differences stay nominal so the frozen 25 fps baseline is
+        // bit-identical.
+        double dt = (n == 0) ? 1.0 / fps : f.stamp - prev_stamp;
+        if (!(dt > 0.0) || !std::isfinite(dt)) dt = 1.0 / fps;
+        if (std::abs(dt - 1.0 / fps) < 1e-9) dt = 1.0 / fps;
+        dt = std::min(dt, 0.5);
+        prev_stamp = f.stamp;
         if (!f.armors.empty()) ++frames_with_armor;
         robot.update(f);
         point.update(f);
@@ -400,8 +429,15 @@ EvalResult evaluate(const Config& cfg, const std::vector<FrameObservations>& obs
         const int static_idx = chooseInitialTarget(f.armors);
         if (robot.state() == TrackState::TRACKING && point.active() && static_idx >= 0) {
             for (std::size_t hi = 0; hi < H; ++hi) {
-                const std::size_t m = n + static_cast<std::size_t>(std::lround(cfg.eval.horizons[hi] * fps));
-                if (m >= obs.size()) continue;
+                // Sample by time, not by index: with dropped frames index n+k is
+                // not k/fps later than frame n. The 1 ns tolerance keeps stamps
+                // that are meant to land exactly on a sample from slipping one
+                // frame forward on floating-point round-off.
+                const double t_h = f.stamp + cfg.eval.horizons[hi] - 1e-9;
+                const auto it = std::lower_bound(obs.begin(), obs.end(), t_h,
+                                                 [](const FrameObservations& g, double t) { return g.stamp < t; });
+                const std::size_t m = static_cast<std::size_t>(it - obs.begin());
+                if (m >= obs.size() || m == n) continue;
                 const auto& fm = obs[m];
                 const RobotTracker::Vec xs = robot.predict(fm.stamp);
                 const cv::Vec3d pp = point.position(point.predict(fm.stamp));

@@ -56,7 +56,8 @@
 - **调参研究**：parameter_sensitivity、parameter_interaction、parameters、
   adaptive_threshold、carry_velocity、warmup_gate、fire_window、exposure_robustness、
   fps_ablation、fx_sensitivity、threshold_vs_range、window_by_range、hit_by_range、
-  hit_by_omega、impact_margin、dps_sweep、occlusion_reassociation、miss_analysis
+  hit_by_omega、impact_margin、dps_sweep、occlusion_reassociation、miss_analysis、
+  FIELD_CONDITIONS_2026-11-11（遮挡/掉帧/降采样/抖动/延迟压力矩阵）
 - **性能**：optimization、optimization_round2
 - **交付与盘点**：monorepo_migration（合并决策与回归证据）、
   completeness_audit_2026-11（迁移时完整性审计）、VIDEO_TEST_2026-11-10（用户视频复测）、software_completion、

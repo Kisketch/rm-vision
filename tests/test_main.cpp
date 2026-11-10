@@ -1,4 +1,4 @@
-// Minimal self-contained tests (no framework dependency).
+﻿// Minimal self-contained tests (no framework dependency).
 #include <cmath>
 #include <cstdio>
 #include <limits>
@@ -10,6 +10,7 @@
 #include "autoaim/config.hpp"
 #include "autoaim/delay_calibration.hpp"
 #include "autoaim/detector.hpp"
+#include "autoaim/evaluation.hpp"
 #include "autoaim/keypoint_detector.hpp"
 #include "autoaim/pose.hpp"
 #include "autoaim/pose_buffer.hpp"
@@ -421,6 +422,42 @@ static void testAimerPhaseLead() {
     CHECK(c0.valid && c1.valid && c0.center_mode && c1.center_mode, "centre mode active");
     CHECK(std::abs(wrapAngle(c1.yaw - c0.yaw)) < 1e-9, "centre-mode yaw must ignore the phase lead (%g)",
           wrapAngle(c1.yaw - c0.yaw));
+}
+
+static void testShotJudgeNonUniform() {
+    // platesAt() used to index by T*fps, which silently interpolates the wrong
+    // plane pair as soon as the stream is not gapless (dropped frames, a camera
+    // that is not eval.fps). Bracket by timestamp instead.
+    CameraModel cam{CameraConfig{}};
+    Ballistics ball{BallisticConfig{}};
+    std::vector<FrameObservations> obs(3);
+    // Deliberately non-uniform: 0 s, 40 ms, 120 ms (two frames lost in between).
+    const double stamps[3] = {0.0, 0.04, 0.12};
+    for (int i = 0; i < 3; ++i) {
+        obs[i].frame = i;
+        obs[i].stamp = stamps[i];
+        ArmorObservation a;
+        a.position = {5.0 + 0.4 * i, 0.0, 0.0};  // 0.4 m per sample
+        a.yaw = 0.0;
+        a.distance = 5.0;
+        a.det.number = "3";
+        a.det.left.length = a.det.right.length = 20;
+        a.det.center = cv::Point2f(100.f * i, 50.f);
+        for (int k = 0; k < 4; ++k) a.det.corners[k] = a.det.center;
+        obs[i].armors.push_back(a);
+    }
+    ShotJudge judge(obs, cam, ball, 25.0);
+    std::vector<ArmorObservation> out;
+    // Midway through the 80 ms gap: the old index arithmetic picked frames 0/1
+    // and returned x = 5.2 m here; the correct answer is 5.8 m.
+    CHECK(judge.platesAt(0.08, "", out), "platesAt must cover the gap");
+    CHECK(out.size() == 1, "one plate, got %zu", out.size());
+    CHECK(std::abs(out[0].position[0] - 5.8) < 1e-6, "gap interpolation x=%.3f, want 5.8", out[0].position[0]);
+    // Exactly on a sample must return that sample, not a blend.
+    CHECK(judge.platesAt(0.04, "", out) && std::abs(out[0].position[0] - 5.4) < 1e-6, "exact sample");
+    // Outside the recording must fail rather than extrapolate.
+    CHECK(!judge.platesAt(0.2, "", out), "beyond the last sample must fail");
+    CHECK(!judge.platesAt(-0.01, "", out), "before the first sample must fail");
 }
 
 static void testPoseBuffer() {
@@ -887,6 +924,7 @@ int main() {
     testTrackerDropoutGrace();
     testYawProcessNoiseSplit();
     testAimerPhaseLead();
+    testShotJudgeNonUniform();
     testDeviceId();
     testAimerRates();
     testKeypointDetector();
