@@ -1,0 +1,20 @@
+build/
+out/
+out_*/
+runs/
+*.o
+*.a
+*.so
+*.avi
+*.mp4
+*.zip
+*.png
+!docs/**/*.png
+*.bak
+*.bak-*
+__pycache__/
+*.pyc
+docs/detections/*.avi
+
+# local tooling session state
+.omo/
