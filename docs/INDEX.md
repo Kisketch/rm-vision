@@ -10,7 +10,8 @@
 
 | 路径 | 标注 |
 |---|---|
-| `README.md` | 仓库入口：定位、构建、目录表摘要、状态 |
+| `README.md` | 仓库入口：定位、构建、目录表摘要、状态（居中标志 + 语言选择头） |
+| `README.zh-CN.md` | README 的简体中文版（与英文版同源同数据，顶部可互跳） |
 | `CLAUDE.md` | Claude Code 的仓库级指令（基线、约定、红线） |
 | `BASELINE.md` | 冻结回归基线与复现命令（回归门禁以此为准） |
 | `CHANGELOG.md` | 哨兵侧变更史（自 rm-sentry-integration 继承） |
@@ -42,6 +43,7 @@
 |---|---|---|
 | `docs/` | 69 | 全部设计/审查/调参文档（见下方 docs 分类表） |
 | `docs/charts/` | 17 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
+| `docs/assets/` | 1 | 仓库标志 logo.svg（README 顶部居中展示） |
 | `docs/detections/` | 9 | 检测效果样例图/视频（说明用） |
 | `reports/` | 3 | 仿真与真视频汇总报告（sim_report 由 UTF-16 转码为 UTF-8，文本不变） |
 | `reports/real_video_regression/` | 9 | 真视频回归分项报告（N0/N1/弹速/标定四组 × 两视频 + 总报告） |
@@ -111,7 +113,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 343 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 345 个（`git ls-files`）；迁移审计的 269 个是历史快照。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。

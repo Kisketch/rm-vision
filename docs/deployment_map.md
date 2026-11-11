@@ -41,7 +41,7 @@ ctest --test-dir build        # 三套单元/集成测试
 
 源码对照：[MVS 默认配置](../core/include/autoaim/camera_source.hpp)、[MVS 与 V4L2 采集](../core/src/camera_source.cpp)、[旧版海康初始化](../legacy/io/src/hikrobot.cpp)。
 
-## 全仓目录（2026-11-11 校验，343 个跟踪文件）
+## 全仓目录（2026-11-11 校验，345 个跟踪文件）
 
 | 目录 | 文件数 | 内容 |
 |---|---|---|
@@ -49,7 +49,7 @@ ctest --test-dir build        # 三套单元/集成测试
 | `sentry/` | 23 | 哨兵模块：库、主程序、串口、配置、旧代码对比台架（`sentry/tools/`，非产品构建） |
 | `apps/` | 5 | 离线程序：`autoaim_video`（评测）、`autoaim_sim`（仿真）、`autoaim_lights`、`detector_bench` |
 | `tests/` | 7 | 三套 CTest：core / 哨兵 / 串口，另有回归门契约测试 |
-| `docs/` | 97 | 69 篇设计/审查/研究文档（见 `docs/INDEX.md` 分类表）+ 设计档案页 + 样例媒体 + 数据图表 17 |
+| `docs/` | 98 | 69 篇设计/审查/研究文档（见 `docs/INDEX.md` 分类表）+ 设计档案页 + 样例媒体 + 数据图表 17 + 仓库标志 1 |
 | `data/` | 39 | 离线评测缓存（双视频检测缓存与分项结果） |
 | `tools/` | 39 | 回归门禁与离线评测脚本（含图表生成 make_charts.py） |
 | `reports/` | 12 | 汇总报告 + 真视频回归分项报告 |

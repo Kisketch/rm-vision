@@ -1,12 +1,27 @@
-# rm-vision — RoboMaster Vision Auto-Aim
+<p align="center">
+  <img src="docs/assets/logo.svg" width="180" alt="rm-vision logo">
+</p>
 
-A complete vision auto-aim system for RoboMaster robots, written in C++17
-(no ROS, no Eigen — OpenCV only). One shared core serves the infantry/hero
-robots and the sentry: armor detection → PnP pose estimation → whole-robot
-EKF tracking → ballistic solution → aiming and fire control. The sentry
-adds its own module on top of the same core: multi-target management
-(including the outpost), a serial link to the MCU, and tracking-guided ROI
-detection.
+<h1 align="center">rm-vision</h1>
+
+<p align="center">
+  <strong>A RoboMaster vision auto-aim system based on a whole-robot EKF.</strong><br>
+  Armor detection → PnP pose estimation → whole-robot EKF tracking → ballistic solution → aiming and fire control, in C++17 (no ROS, no Eigen — OpenCV only). One shared core serves the infantry/hero robots and the sentry; the sentry adds multi-target management (including the outpost), a serial link to the MCU, and tracking-guided ROI detection.
+</p>
+
+<p align="center">
+  Languages: <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+---
+
+## Preview
+
+| Hit rates on real video | Simulator scenarios |
+|---|---|
+| ![Hit rate by configuration and calibre](docs/charts/hit_rates.svg) | ![Simulator scenarios: hit rate by strategy](docs/charts/sim_scenarios.svg) |
+
+Full results, each chart beside its data table: [Measured data](#measured-data).
 
 The system is built around three concerns that competition code often gets
 wrong: **time** (every observation is aligned to the camera's exposure
