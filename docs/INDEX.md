@@ -40,7 +40,7 @@
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `docs/` | 68 | 全部设计/审查/调参文档（见下方 docs 分类表） |
+| `docs/` | 69 | 全部设计/审查/调参文档（见下方 docs 分类表） |
 | `docs/charts/` | 6 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
 | `docs/detections/` | 9 | 检测效果样例图/视频（说明用） |
 | `reports/` | 3 | 仿真与真视频汇总报告（sim_report 由 UTF-16 转码为 UTF-8，文本不变） |
@@ -60,7 +60,9 @@
   单一 scale 标定且真实视频迁移失败、hits/s 净损失——结论门控保持关闭，附重开条件）、
   nis_adapt_study（P2-10 子实验：NIS 驱动自适应 q——仿真平移 +3.5/+7.0 pp 成立，但真实
   视频阈值锁存、占用 92–100% 帧，四格守门全退化，否决出厂；τ 联动仿真即灾难性否决；
-  补丁留实验副本未合入，附重开条件）
+  补丁留实验副本未合入，附重开条件）、
+  detector_tuning_study（检测器参数 A/B：阈值 60/80、自适应阈值、分类阈值 0.6 均未达
+  合入标准，出厂参数保持；角点精化经消融证实值 +3–4 pp，原始数据存目标工作区）
 - **标定与实测**：distortion_order、MEASUREMENTS、on_robot_trial_checklist（上车试机清单）、
   calibration_record_template（标定档案模板：重标定必须存原始图像/工具输出/重投影误差，不只留五个数字）
 - **调参研究**：parameter_sensitivity、parameter_interaction、parameters、
@@ -109,7 +111,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 331 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 332 个（`git ls-files`）；迁移审计的 269 个是历史快照。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。
