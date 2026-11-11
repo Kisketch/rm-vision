@@ -503,7 +503,7 @@ binary here by design — the algorithm ships as the `autoaim_core` library
 (`apps/` holds offline evaluation and simulation tools only), and
 `legacy/` is the previous on-robot program kept as a read-only archive,
 not a build input. A one-page deployment map (in Chinese, for the team)
-is [docs/deployment_map.md](docs/deployment_map.md).
+includes the [camera inventory and capture settings](docs/deployment_map.md#相机配置核对).
 
 ## Repository layout
 
