@@ -112,3 +112,17 @@
   设置；唯一的大家伙是关掉角点精化——直接掉 3–4 pp。检测器
   的改进红线：不许牺牲角点精度。
 - 出处：docs/detector_tuning_study.md。
+
+## 12. 模拟器场景：旋转全胜、强横移是悬崖
+
+![Simulator scenarios](charts/sim_scenarios.svg)
+
+![Simulator profile](charts/sim_profile.svg)
+
+- **强项**：一切带旋转的场景整车 EKF 都在 94% 以上，点 KF 在
+  高速旋转（37.0%）和旋转+强横移（14.6%）下崩坏——整车建模的
+  价值在模拟器里和真实视频里一致。
+- **弱项**：纯强横移（S8）三家全灭（14.0/24.5/14.6），中心误差
+  10.7 cm、ω 误差 1.68 rad/s：恒速模型对 5–8 m/s² 侧向加速度的
+  固有滞后，是模型问题不是噪声问题（见 README Limitations）。
+- 出处：README.md / BASELINE.md §8（autoaim_sim 地面真值）。

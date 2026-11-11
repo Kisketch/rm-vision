@@ -351,6 +351,10 @@ few points with calibre and machine, rankings do not):
 | spin 6 rad/s + hard strafe 0.5 m / 2 s | 53.6% | 14.6% | 43.2% | 5.8 | 3.5 cm | 0.97 |
 | no spin, hard strafe 0.8 m / 2 s | 14.0% | 24.5% | 14.6% | 2.1 | 10.7 cm | 1.68 |
 
+![Simulator scenarios: hit rate by strategy](docs/charts/sim_scenarios.svg)
+
+![Simulator: robot-EKF intensity and precision per scenario](docs/charts/sim_profile.svg)
+
 The last two rows are the open problem (see Limitations): sideways
 acceleration of 5–8 m/s² over a 0.33 s lead is a 0.27–0.43 m prediction
 error under any constant-velocity model — several plate widths.

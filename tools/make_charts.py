@@ -369,6 +369,65 @@ def detector_tuning():
 
 
 
+
+
+# ------------------------------------------------------ simulator scenarios
+SIM_SCEN = [  # (short label, direct, point KF, robot EKF, hits/s, centre err cm, omega err)
+    ("spin 2.1 rad/s @ 5 m", 42.3, 97.5, 99.7, 16.9, 3.9, 0.55),
+    ("fast spin 10 rad/s @ 4 m", 43.2, 37.0, 99.3, 14.4, 2.1, 0.38),
+    ("spin 4 rad/s, 7->3 m", 51.8, 44.4, 97.4, 13.2, 3.0, 0.49),
+    ("variable spin 0.5-4.5 @ 6 m", 69.9, 73.2, 94.4, 12.6, 4.4, 0.53),
+    ("swing +/-3 rad/s", 64.4, 88.7, 96.2, 16.4, 4.2, 0.55),
+    ("spin 3 + gentle strafe", 74.9, 67.0, 79.3, 11.3, 4.4, 0.57),
+    ("spin 6 + hard strafe", 53.6, 14.6, 43.2, 5.8, 3.5, 0.97),
+    ("no spin, hard strafe", 14.0, 24.5, 14.6, 2.1, 10.7, 1.68),
+]
+
+
+def sim_scenarios():
+    W, H, x0, x1 = 920, 726, 70, 890
+    p = open_svg(W, H, "Simulator scenarios: hit rate by strategy (%)",
+                 "autoaim_sim ground truth: 0.7 px corner noise, 5% drop-out, 25 fps, 60 ms latency, 22 m/s calibre. Full scenario names in the README table. Source: README.md / BASELINE.md section 8.")
+    for cx, colour, lab in [(300, GRAY, "direct"), (420, RED, "point KF"), (540, BLUE, "robot EKF")]:
+        p.append(f'<rect x="{cx}" y="60" width="12" height="12" fill="{colour}"/>')
+        p.append(f'<text x="{cx + 18}" y="70" font-size="11.5" fill="{INK}">{lab}</text>')
+    for t in [0, 25, 50, 75, 100]:
+        x = x0 + t / 100 * (x1 - x0)
+        p.append(f'<line x1="{x:.0f}" y1="86" x2="{x:.0f}" y2="668" stroke="{GRID}"/>')
+        p.append(f'<text x="{x:.0f}" y="688" font-size="10.5" text-anchor="middle" fill="#4b5563">{t}%</text>')
+    y = 96
+    for lab, d, pk, rk, *_ in SIM_SCEN:
+        p.append(f'<text x="{x0}" y="{y + 10}" font-size="12" font-weight="bold" fill="{INK}">{lab}</text>')
+        for j, (v, colour) in enumerate([(d, GRAY), (pk, RED), (rk, BLUE)]):
+            yy = y + 16 + j * 17
+            w = v / 100 * (x1 - x0)
+            p.append(f'<rect x="{x0}" y="{yy}" width="{w:.0f}" height="13" fill="{colour}"/>')
+            p.append(f'<text x="{x0 + w + 6:.0f}" y="{yy + 11}" font-size="10.5" fill="{INK}">{v}</text>')
+        y += 71
+    close_svg(p, "sim_scenarios.svg")
+
+
+def sim_profile():
+    W, H = 920, 440
+    p = open_svg(W, H, "Simulator: robot-EKF intensity and precision per scenario",
+                 "S1-S8 in the order of the scenario chart above. Left: hits per second (intensity). Right: centre error in cm (precision); the hard-strafe scenario S8 is the open problem. Source: README.md / BASELINE.md section 8.")
+    for pi, (idx, vmax, title, unit, colour) in enumerate([
+            (4, 18.0, "hits / s", "", TEAL), (5, 12.0, "centre err (cm)", " cm", RED)]):
+        cx = 40 + pi * 450
+        y1, y0 = 340, 120
+        p.append(f'<text x="{cx + 200}" y="98" font-size="13.5" font-weight="bold" text-anchor="middle" fill="{INK}">{title}</text>')
+        for si, row in enumerate(SIM_SCEN):
+            v = row[idx]
+            x = cx + 16 + si * 50
+            y = y1 - v / vmax * (y1 - y0)
+            c = colour if not (idx == 5 and si == 7) else "#7f1d1d"
+            p.append(f'<rect x="{x}" y="{y:.0f}" width="36" height="{y1 - y:.0f}" fill="{c}"/>')
+            p.append(f'<text x="{x + 18}" y="{y - 5:.0f}" font-size="10" text-anchor="middle" fill="{INK}">{v:g}</text>')
+            p.append(f'<text x="{x + 18}" y="{y1 + 16}" font-size="10.5" text-anchor="middle" fill="#4b5563">S{si + 1}</text>')
+    close_svg(p, "sim_profile.svg")
+
+
+
 if __name__ == "__main__":
     hit_rates()
     field_conditions()
@@ -381,3 +440,5 @@ if __name__ == "__main__":
     pred_horizon()
     sigma_calibration()
     detector_tuning()
+    sim_scenarios()
+    sim_profile()
