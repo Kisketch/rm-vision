@@ -17,9 +17,13 @@
 
 ## 预览
 
-| 真实视频命中率 | 模拟器场景 |
-|---|---|
-| ![按配置与口径分的命中率](docs/charts/hit_rates.svg) | ![模拟器场景：按策略分的命中率](docs/charts/sim_scenarios.svg) |
+| 真实视频命中率 |
+|---|
+| ![按配置与口径分的命中率](docs/charts/hit_rates.svg) |
+
+| 模拟器场景 |
+|---|
+| ![模拟器场景：按策略分的命中率](docs/charts/sim_scenarios.svg) |
 
 完整结果，每张图都紧挨着它的数据表：[实测数据](#实测数据)。
 

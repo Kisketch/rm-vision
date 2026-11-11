@@ -17,9 +17,13 @@
 
 ## Preview
 
-| Hit rates on real video | Simulator scenarios |
-|---|---|
-| ![Hit rate by configuration and calibre](docs/charts/hit_rates.svg) | ![Simulator scenarios: hit rate by strategy](docs/charts/sim_scenarios.svg) |
+| Hit rates on real video |
+|---|
+| ![Hit rate by configuration and calibre](docs/charts/hit_rates.svg) |
+
+| Simulator scenarios |
+|---|
+| ![Simulator scenarios: hit rate by strategy](docs/charts/sim_scenarios.svg) |
 
 Full results, each chart beside its data table: [Measured data](#measured-data).
 
