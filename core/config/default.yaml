@@ -58,7 +58,10 @@ pose:
    armor_pitch_deg: 15.
    yaw_search_range_deg: 85.
    # Self-calibrated: two plates of one robot seen together must be 90 deg apart;
-   # measured 69.3 deg (video 3, 248 frames) and 69.7 deg (video 4, 542 frames).
+   # measured 69.3 deg (video 3, 248 frames) and 69.7 deg (video 4, 542 frames),
+   # so the gain is 90 / ~69.5 = 1.3. Caveat: the measurement comes from those
+   # two recordings only - re-measure it when the camera or its mount changes,
+   # and do not treat 1.3 as a universal constant.
    yaw_gain: 1.3
 
 tracker:

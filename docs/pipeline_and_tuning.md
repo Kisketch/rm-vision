@@ -114,7 +114,7 @@ environment (OS / MSVC / OpenCV / commit), the commands to reproduce it, and the
 | idea | source (license) | here |
 |---|---|---|
 | light/pair geometry tests, IPPE PnP, MLP digit classifier, tracker state machine | [chenjunnn/rm_auto_aim](https://github.com/chenjunnn/rm_auto_aim) (MIT) | `detector.cpp`, `pose.cpp`, `tracker.cpp` |
-| whole-robot EKF (centre + yaw + radius) | rm_auto_aim; [FaterYU/rm_auto_aim](https://github.com/FaterYU/rm_auto_aim) (MIT) | extended to 11 states |
+| whole-robot EKF (centre + yaw + radius) | rm_auto_aim; [FaterYU/rm_auto_aim](https://github.com/FaterYU/rm_auto_aim) (MIT) | extended to 13 states (11 + axc/ay CA extension) |
 | second-pair height `d_z`, best-armor selection with `side_angle`, centre tracking when spinning fast, fire tolerance | [CSU-FYT-Vision/FYT2024_vision](https://github.com/CSU-FYT-Vision/FYT2024_vision) (Apache-2.0) | `tracker.cpp`, `aimer.cpp` |
 | PCA symmetry-axis corner refinement | FYT2024 `light_corner_corrector` | `Detector::refineCorners` |
 | fixed-pitch yaw optimisation (FYT's BA idea) | FYT2024 `ba_solver` | 1-D search, no g2o |

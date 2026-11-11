@@ -298,6 +298,51 @@ struct Spinner {
     }
 };
 
+static void testTrackerCaModel() {
+    // The CA (constant-acceleration) branch is off by default and was previously
+    // exercised by no test at all. Spin the target up (yaw = w0 t + a t^2 / 2)
+    // with ca_model on: the branch must run, stay finite and reach TRACKING.
+    // This asserts the path is alive, not that CA beats the CV model (on the
+    // pure-translation simulator scenario it does not; see BASELINE.md).
+    CameraConfig cc;
+    CameraModel cam(cc);
+    TrackerConfig tc;
+    tc.ca_model = 1;
+    RobotTracker tr(tc, cam);
+    const double w0 = 1.0, acc = 1.2, r = 0.24, fps = 50;
+    const cv::Vec3d c(5, 0.2, -0.1);
+    for (int n = 0; n < 250; ++n) {
+        const double t = n / fps;
+        FrameObservations f;
+        f.frame = n, f.stamp = t;
+        const double los = std::atan2(c[1], c[0]);
+        for (int k = 0; k < 4; ++k) {
+            const double yaw = 0.2 + w0 * t + 0.5 * acc * t * t + kPi / 2 * k;
+            if (std::abs(wrapAngle(yaw - los)) > 1.0) continue;
+            ArmorObservation o;
+            o.position = {c[0] - r * std::cos(yaw), c[1] - r * std::sin(yaw), c[2]};
+            o.distance = cv::norm(o.position);
+            o.yaw = wrapAngle(yaw);
+            o.det.number = "3";
+            o.det.left.length = o.det.right.length = 20;
+            o.image_center_dist = 100;
+            f.armors.push_back(o);
+        }
+        tr.update(f);
+    }
+    const auto& x = tr.x();
+    bool finite = true;
+    for (int i = 0; i < RobotTracker::N; ++i) finite &= std::isfinite(x[i]);
+    CHECK(finite, "CA state must stay finite");
+    CHECK(tr.state() == TrackState::TRACKING, "CA tracking state %s", toString(tr.state()));
+    const double w_true = w0 + acc * (249 / fps);
+    CHECK(std::abs(x[RobotTracker::W] - w_true) < 1.0, "CA omega %.3f vs true %.3f", x[RobotTracker::W], w_true);
+    CHECK(std::hypot(x[RobotTracker::XC] - c[0], x[RobotTracker::YC] - c[1]) < 0.1, "CA centre %.3f %.3f",
+          x[RobotTracker::XC], x[RobotTracker::YC]);
+    std::printf("tracker CA: w %.3f (true %.2f), axc %.3f ayc %.3f\n", x[RobotTracker::W], w_true,
+                x[RobotTracker::AXC], x[RobotTracker::AY]);
+}
+
 static void testTrackerDropoutGrace() {
     // One frame without a detection is a dropout, not a lost target. With
     // lost_grace_frames = 0 the track is demoted (the historical rule); with 1
@@ -921,6 +966,7 @@ int main() {
     testPoseQuality();
     testAssociationDiagnostics();
     testTracker();
+    testTrackerCaModel();
     testTrackerDropoutGrace();
     testYawProcessNoiseSplit();
     testAimerPhaseLead();

@@ -146,6 +146,20 @@ def main() -> int:
             failures += 0 if ok else 1
             print(f"{'sim':10s} {'mean_hit':12s} {args.sim_ref:9.1f} {mean:9.1f} "
                   f"{mean - args.sim_ref:+8.1f}  {'PASS' if ok else 'FAIL'}")
+            # The mean masks the weakest scenario: pure translation (no spin,
+            # strafe) is where the whole-robot EKF trails even the direct
+            # strategy (11.4% vs 14.2% on two independent machines; the sim is
+            # seed-deterministic). Gate that row on its own so a further
+            # collapse cannot hide inside a healthy mean. The 11.4 reference
+            # is for the sim's default 20 s run, which is what this gate uses.
+            rows = re.findall(r"^\| (no spin, strafe[^|]*)\| [\d.]+ \| [\d.]+ \| ([\d.]+) \|",
+                              proc.stdout, re.MULTILINE)
+            if rows:
+                strafe = float(rows[0][1])
+                ok = strafe >= 11.4 - TOL_SIM_PP
+                failures += 0 if ok else 1
+                print(f"{'sim':10s} {'strafe_hit':12s} {11.4:9.1f} {strafe:9.1f} "
+                      f"{strafe - 11.4:+8.1f}  {'PASS' if ok else 'FAIL'}")
         else:
             print(f"sim: 解析到 {len(hits)} 个场景（应为 8），跳过", file=sys.stderr)
     else:

@@ -3,7 +3,8 @@
 // RobotTracker - whole-robot EKF ("整车观测"). Based on the 9-state model of
 // chenjunnn/rm_auto_aim (MIT) and the d_z extension of FYT2024 (Apache-2.0),
 // re-implemented with these changes:
-//   * 11 states: xc vxc yc vyc zc vzc yaw w r1 r2 dz. Both radii and the height
+//   * 13 states: xc vxc yc vyc zc vzc yaw w r1 r2 dz axc ay (axc/ay are the
+//     CA extension, exercised only when ca_model > 0). Both radii and the height
 //     offset of the second armor pair live inside the filter, so they are
 //     estimated instead of swapped by hand on every "armor jump".
 //   * Multi-armor association: each observation is matched to the nearest of

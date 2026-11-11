@@ -74,8 +74,21 @@ int main(int argc, char** argv) {
     double fps = 25, noise = 0.7, seconds = 20, dropout = 0.05;
     int seed = 0;
     std::vector<std::pair<std::string, double>> sets;
-    for (int i = 1; i + 1 < argc; ++i) {
+    for (int i = 1; i < argc; ++i)
+        if (std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h") {
+            std::printf("usage: autoaim_sim [--config f.yaml] [--fps n] [--noise px] "
+                        "[--seconds s] [--dropout f] [--seed n] [--set k=v]...\n");
+            return 0;
+        }
+    for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
+        if (a == "--config" || a == "--fps" || a == "--noise" || a == "--seconds" ||
+            a == "--dropout" || a == "--seed" || a == "--set") {
+            if (i + 1 >= argc) {
+                std::cerr << "missing value for " << a << " (try --help)\n";
+                return 1;
+            }
+        }
         if (a == "--config") config_path = argv[++i];
         else if (a == "--fps") fps = std::stod(argv[++i]);
         else if (a == "--noise") noise = std::stod(argv[++i]);
@@ -86,6 +99,10 @@ int main(int argc, char** argv) {
             const std::string kv = argv[++i];
             const auto eq = kv.find('=');
             sets.emplace_back(kv.substr(0, eq), std::stod(kv.substr(eq + 1)));
+        }
+        else {
+            std::cerr << "unknown argument " << a << " (try --help)\n";
+            return 1;
         }
     }
     Config cfg = Config::load(config_path);
