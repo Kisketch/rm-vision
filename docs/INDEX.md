@@ -40,7 +40,7 @@
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `docs/` | 64 | 全部设计/审查/调参文档（见下方 docs 分类表） |
+| `docs/` | 65 | 全部设计/审查/调参文档（见下方 docs 分类表） |
 | `docs/detections/` | 9 | 检测效果样例图/视频（说明用） |
 | `reports/` | 3 | 仿真与真视频汇总报告（sim_report 由 UTF-16 转码为 UTF-8，文本不变） |
 | `reports/real_video_regression/` | 9 | 真视频回归分项报告（N0/N1/弹速/标定四组 × 两视频 + 总报告） |
@@ -68,7 +68,8 @@
   hit_by_omega、impact_margin、dps_sweep、occlusion_reassociation、miss_analysis、
   FIELD_CONDITIONS_2026-11-11（遮挡/掉帧/降采样/抖动/延迟压力矩阵）
 - **性能**：optimization、optimization_round2
-- **交付与盘点**：design_archive.html（设计档案总览页，浏览器直接打开；数字以 BASELINE.md 为准）、
+- **交付与盘点**：deployment_map（部署地图：上车代码位置、构建产物与配置清单、目录总表——新人先看这页）、
+  design_archive.html（设计档案总览页，浏览器直接打开；数字以 BASELINE.md 为准）、
   monorepo_migration（合并决策与回归证据）、
   completeness_audit_2026-11（迁移时完整性审计）、VIDEO_TEST_2026-11-10（用户视频复测）、software_completion、
   software-only-inventory-and-data-needed（软件盘点与待补数据清单）、
@@ -104,7 +105,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 319 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 320 个（`git ls-files`）；迁移审计的 269 个是历史快照。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。

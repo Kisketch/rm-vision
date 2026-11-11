@@ -484,6 +484,19 @@ gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video
 python3 tools/regression.py            # video gate (frozen reference) + simulator gate
 ```
 
+## What runs on the robot
+
+The only live executable this repository builds is the **sentry program**:
+`sentry/apps/sentry_robot.cpp` (library `autoaim_sentry` in `sentry/`)
+linked against the shared core library `autoaim_core` in `core/`, using
+`sentry/config/sentry.yaml` and the measured-calibre
+`core/config/default.yaml`. For infantry/hero there is no standalone live
+binary here by design — the algorithm ships as the `autoaim_core` library
+(`apps/` holds offline evaluation and simulation tools only), and
+`legacy/` is the previous on-robot program kept as a read-only archive,
+not a build input. A one-page deployment map (in Chinese, for the team)
+is [docs/deployment_map.md](docs/deployment_map.md).
+
 ## Repository layout
 
 ```
