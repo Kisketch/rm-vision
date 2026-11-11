@@ -22,6 +22,7 @@ Exit code 0 = no regression, 1 = regression or missing input.
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import subprocess
 import sys
@@ -93,6 +94,8 @@ def main() -> int:
     ap.add_argument("--sim-ref", type=float, default=SIM_MEAN_REF,
                     help="仿真均值基准（机器相关，见 BASELINE.md §8）")
     args = ap.parse_args()
+    if not math.isfinite(args.sim_ref):
+        ap.error("--sim-ref must be finite")
 
     exe = Path(args.exe)
     if not exe.is_file():
@@ -107,6 +110,9 @@ def main() -> int:
     stems = [s.strip() for s in args.videos.split(",") if s.strip()] or ["3", "4"]
     videos = []
     for stem in stems:
+        if stem not in reference:
+            print(f"{stem}: 没有冻结基准", file=sys.stderr)
+            return 1
         v = vdir / f"{stem}.avi"
         if not v.is_file():
             print(f"找不到视频: {v}", file=sys.stderr)
@@ -116,14 +122,25 @@ def main() -> int:
     failures = 0
     print(f"{'video':10s} {'metric':12s} {'reference':>9s} {'measured':>9s} {'delta':>8s}  verdict")
     for stem, video in videos:
+        report_path = Path(args.out) / f"{stem}_report.md"
+        before = report_path.stat() if report_path.is_file() else None
         proc = subprocess.run([str(exe), str(video), "--out", args.out, "--config", args.config],
                               capture_output=True, text=True)
         if proc.returncode != 0:
             print(f"{stem}: 运行失败\n{proc.stderr[-500:]}", file=sys.stderr)
             return 1
-        got = parse_report(Path(args.out) / f"{stem}_report.md")
+        try:
+            after = report_path.stat()
+            if before and (before.st_mtime_ns, before.st_size, before.st_ino) == (
+                    after.st_mtime_ns, after.st_size, after.st_ino):
+                print(f"{report_path}: 本次运行未能确认报告已更新", file=sys.stderr)
+                return 1
+            got = parse_report(report_path)
+        except (OSError, ValueError) as error:
+            print(f"{report_path}: 报告读取失败: {error}", file=sys.stderr)
+            return 1
         ref = reference.get(stem)
-        if ref is None or len(got) < 3:
+        if len(got) < 3 or not all(map(math.isfinite, got.values())):
             print(f"{stem}: 无法解析报告", file=sys.stderr)
             return 1
         for key, tol, unit in (("hit", TOL_HIT_PP, "%"), ("pred_032", TOL_PRED_PX, "px"),
@@ -138,9 +155,12 @@ def main() -> int:
         "autoaim_sim.exe" if exe.name.endswith(".exe") else "autoaim_sim")
     if sim_exe.is_file():
         proc = subprocess.run([str(sim_exe)], capture_output=True, text=True)
+        if proc.returncode:
+            print(f"sim: 退出码 {proc.returncode}\n{proc.stderr[-500:]}", file=sys.stderr)
+            return 1
         hits = [float(m) for m in re.findall(r"^\| .*? \| [\d.]+ \| [\d.]+ \| ([\d.]+) \|",
                                              proc.stdout, re.MULTILINE)]
-        if len(hits) == 8:
+        if len(hits) == 8 and all(map(math.isfinite, hits)):
             mean = sum(hits) / 8
             ok = mean >= args.sim_ref - TOL_SIM_PP
             failures += 0 if ok else 1
@@ -154,20 +174,29 @@ def main() -> int:
             # is for the sim's default 20 s run, which is what this gate uses.
             rows = re.findall(r"^\| (no spin, strafe[^|]*)\| [\d.]+ \| [\d.]+ \| ([\d.]+) \|",
                               proc.stdout, re.MULTILINE)
-            if rows:
+            if len(rows) == 1:
                 strafe = float(rows[0][1])
                 ok = strafe >= 11.4 - TOL_SIM_PP
                 failures += 0 if ok else 1
                 print(f"{'sim':10s} {'strafe_hit':12s} {11.4:9.1f} {strafe:9.1f} "
                       f"{strafe - 11.4:+8.1f}  {'PASS' if ok else 'FAIL'}")
+            else:
+                print(f"sim: 专项检查行数为 {len(rows)}，应为 1", file=sys.stderr)
+                return 1
         else:
-            print(f"sim: 解析到 {len(hits)} 个场景（应为 8），跳过", file=sys.stderr)
+            print(f"sim: 解析到 {len(hits)} 个场景（应为 8）", file=sys.stderr)
+            return 1
     else:
-        print(f"跳过仿真：找不到 {sim_exe}", file=sys.stderr)
+        print(f"无法完成仿真检查：找不到 {sim_exe}", file=sys.stderr)
+        return 1
 
     print("\nRESULT: PASS" if failures == 0 else f"\nRESULT: FAIL ({failures} 项)")
     return 0 if failures == 0 else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except (OSError, ValueError) as error:
+        print(f"检查失败: {error}", file=sys.stderr)
+        sys.exit(1)

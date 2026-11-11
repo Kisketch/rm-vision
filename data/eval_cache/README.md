@@ -29,14 +29,18 @@ cite.
 
 ## The detection cache format
 
-`detections.txt` is the cache protocol consumed by
-`tools/offline_eval/evaldriver_vision.cpp` and produced by
-`apps/autoaim_video`: one header line (format version, frame count,
-image size, fps) followed by one line per frame with the detected plates
-(corners, colour, number, confidence). Evaluating from the cache makes
-the tracker/aimer half of the pipeline bit-reproducible without
-re-running the detector; `tests/test_cache.py` round-trips the format in
-CI.
+The current `apps/autoaim_video` writer emits one text row per frame,
+starting with frame 0. There is no header row. The first three fields
+are the frame index, timestamp in seconds, and number of detections.
+Each detection then contributes 13 fields: number, confidence, type,
+and the top x/y, bottom x/y and width for each of the two light bars.
+There is no separate colour field in this payload. See
+`saveDetections` and `loadDetections` in `core/src/evaluation.cpp`.
+
+The current video app uses a separate `.meta.yml` file for cache
+validation. On a cache hit it rebuilds the timeline from the frame
+index and evaluation FPS. The timestamps used by this path cannot
+establish the original intervals between hardware captures.
 
 ## Deduplication (why there is one detections.txt per video, not six)
 
