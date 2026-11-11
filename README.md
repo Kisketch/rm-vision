@@ -182,6 +182,8 @@ velocity from the referee system overrides it at runtime
 one, is the only safe input. The 42 mm values shipped today are
 placeholders (see Measured data) pending hero-robot measurement.
 
+![Ballistics: flight time and level-fire drop vs distance](docs/charts/ballistics_curves.svg)
+
 ### Identity: one robot, one track
 
 Detections carry a `DeviceId` — colour + plate number + plate size —
@@ -333,6 +335,8 @@ by only 1.5–2.4 pp. That is a property of *this* footage (one visible
 target, few full occlusions), not a guarantee: on occlusion-heavy
 footage the gap is exactly the bias the three-metric report exists to
 expose.
+
+![Strategy ladder on real video](docs/charts/strategy_ceiling.svg)
 
 ### Simulator (ground truth)
 

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="500" viewBox="0 0 920 500" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+<rect width="920" height="500" fill="#0f172a"/>
+<text x="24" y="30" font-size="17" font-weight="bold" fill="#e2e8f0">Main camera bandwidth at 165 fps (Bayer8, uncompressed)</text>
+<text x="24" y="50" font-size="11.5" fill="#94a3b8">The camera is USB 3.0 but the team's VM link is USB 2.0 (~40 MB/s effective): at 1440x1080 the link caps the stream near 26 fps. Formula and context: docs/camera_hardware.md</text>
+<line x1="70" y1="388" x2="890" y2="388" stroke="#1e293b"/>
+<text x="64" y="392" font-size="10.5" text-anchor="end" fill="#94a3b8">0</text>
+<line x1="70" y1="310" x2="890" y2="310" stroke="#1e293b"/>
+<text x="64" y="314" font-size="10.5" text-anchor="end" fill="#94a3b8">170</text>
+<line x1="70" y1="232" x2="890" y2="232" stroke="#1e293b"/>
+<text x="64" y="236" font-size="10.5" text-anchor="end" fill="#94a3b8">340</text>
+<line x1="70" y1="154" x2="890" y2="154" stroke="#1e293b"/>
+<text x="64" y="158" font-size="10.5" text-anchor="end" fill="#94a3b8">510</text>
+<line x1="70" y1="76" x2="890" y2="76" stroke="#1e293b"/>
+<text x="64" y="80" font-size="10.5" text-anchor="end" fill="#94a3b8">680</text>
+<rect x="160" y="318" width="100" height="70" fill="#3b82f6"/>
+<text x="210" y="312" font-size="12" text-anchor="middle" fill="#e2e8f0">152 MB/s</text>
+<text x="210" y="408" font-size="11.5" text-anchor="middle" fill="#e2e8f0">1280x720</text>
+<text x="210" y="426" font-size="10.5" text-anchor="middle" fill="#94a3b8">USB2 cap ~43 fps</text>
+<rect x="360" y="270" width="100" height="118" fill="#3b82f6"/>
+<text x="410" y="264" font-size="12" text-anchor="middle" fill="#e2e8f0">257 MB/s</text>
+<text x="410" y="408" font-size="11.5" text-anchor="middle" fill="#e2e8f0">1440x1080</text>
+<text x="410" y="426" font-size="10.5" text-anchor="middle" fill="#94a3b8">USB2 cap ~25 fps</text>
+<rect x="560" y="231" width="100" height="157" fill="#3b82f6"/>
+<text x="610" y="225" font-size="12" text-anchor="middle" fill="#e2e8f0">342 MB/s</text>
+<text x="610" y="408" font-size="11.5" text-anchor="middle" fill="#e2e8f0">1920x1080</text>
+<text x="610" y="426" font-size="10.5" text-anchor="middle" fill="#94a3b8">USB2 cap ~19 fps</text>
+<rect x="760" y="109" width="100" height="279" fill="#3b82f6"/>
+<text x="810" y="103" font-size="12" text-anchor="middle" fill="#e2e8f0">609 MB/s</text>
+<text x="810" y="408" font-size="11.5" text-anchor="middle" fill="#e2e8f0">2560x1440</text>
+<text x="810" y="426" font-size="10.5" text-anchor="middle" fill="#94a3b8">USB2 cap ~10 fps</text>
+<line x1="70" y1="370" x2="890" y2="370" stroke="#ef4444" stroke-dasharray="7 4" stroke-width="1.6"/>
+<text x="894" y="374" font-size="10.5" fill="#ef4444">USB 2.0 effective ~40 MB/s</text>
+<line x1="70" y1="204" x2="890" y2="204" stroke="#14b8a6" stroke-dasharray="7 4" stroke-width="1.6"/>
+<text x="894" y="208" font-size="10.5" fill="#14b8a6">USB 3.0 effective ~400 MB/s</text>
+</svg>

@@ -11,7 +11,7 @@ import os
 OUT = os.path.join(os.path.dirname(__file__), "..", "docs", "charts")
 
 BLUE, TEAL, AMBER, RED, GRAY, GRID, INK = (
-    "#2563eb", "#0d9488", "#d97706", "#dc2626", "#9ca3af", "#e5e7eb", "#111827")
+    "#3b82f6", "#14b8a6", "#f59e0b", "#ef4444", "#64748b", "#1e293b", "#e2e8f0")
 FONT = "font-family=\"'Segoe UI', Helvetica, Arial, sans-serif\""
 
 
@@ -19,9 +19,9 @@ def open_svg(w, h, title, subtitle):
     return [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
         f'viewBox="0 0 {w} {h}" {FONT}>',
-        f'<rect width="{w}" height="{h}" fill="white"/>',
+        f'<rect width="{w}" height="{h}" fill="#0f172a"/>',
         f'<text x="24" y="30" font-size="17" font-weight="bold" fill="{INK}">{title}</text>',
-        f'<text x="24" y="50" font-size="11.5" fill="#4b5563">{subtitle}</text>',
+        f'<text x="24" y="50" font-size="11.5" fill="#94a3b8">{subtitle}</text>',
     ]
 
 
@@ -37,7 +37,7 @@ def y_axis(p, x0, y0, y1, vmax, ticks, unit=""):
     for t in ticks:
         y = y1 - (t / vmax) * (y1 - y0)
         p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{GRID}"/>')
-        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#4b5563">{t}{unit}</text>')
+        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#94a3b8">{t}{unit}</text>')
 
 
 # ---------------------------------------------------------------- hit rates
@@ -85,7 +85,7 @@ def field_conditions():
     for t in [40, 50, 60, 70]:
         y = y1 - (t - vmin) / (vmax - vmin) * (y1 - y0)
         p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{GRID}"/>')
-        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#4b5563">{t}%</text>')
+        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#94a3b8">{t}%</text>')
     xs = [x0 + 110, x0 + 420, x0 + 730]
     for x, lab in zip(xs, ["0% dropped", "20% dropped", "40% dropped"]):
         p.append(f'<text x="{x}" y="{y1 + 20}" font-size="12" text-anchor="middle" fill="{INK}">{lab}</text>')
@@ -125,7 +125,7 @@ def latency():
             y = y1 - (v / vmax) * (y1 - y0)
             p.append(f'<rect x="{x}" y="{y:.0f}" width="76" height="{y1 - y:.0f}" fill="{colour}"/>')
             p.append(f'<text x="{x + 38}" y="{y - 6:.0f}" font-size="12" text-anchor="middle" fill="{INK}">{v:g}</text>')
-            p.append(f'<text x="{x + 38}" y="{y1 + 18}" font-size="11" text-anchor="middle" fill="#4b5563">{lab}</text>')
+            p.append(f'<text x="{x + 38}" y="{y1 + 18}" font-size="11" text-anchor="middle" fill="#94a3b8">{lab}</text>')
         p.append(f'<text x="{cx + 130}" y="{y1 + 42}" font-size="11.5" text-anchor="middle" fill="{TEAL}">{note}</text>')
     close_svg(p, "latency.svg")
 
@@ -149,7 +149,7 @@ def nis_adapt():
     p.append(f'<line x1="{zx}" y1="86" x2="{zx}" y2="392" stroke="{INK}" stroke-width="1.4"/>')
     for t in [-6, -3, 0, 3, 6]:
         x = zx + t * scale
-        p.append(f'<text x="{x}" y="410" font-size="10.5" text-anchor="middle" fill="#4b5563">{t:+d}</text>')
+        p.append(f'<text x="{x}" y="410" font-size="10.5" text-anchor="middle" fill="#94a3b8">{t:+d}</text>')
     for label, v in rows:
         colour = TEAL if v > 0 else RED
         x = zx if v > 0 else zx + v * scale
@@ -178,7 +178,7 @@ def sigma_coverage():
         p.append(f'<rect x="{x}" y="{y:.0f}" width="110" height="{y1 - y:.0f}" fill="{colour}"/>')
         p.append(f'<text x="{x + 55}" y="{y - 6:.0f}" font-size="13" text-anchor="middle" fill="{INK}">{v:g}</text>')
         p.append(f'<text x="{x + 55}" y="{y1 + 20}" font-size="11.5" text-anchor="middle" fill="{INK}">{label}</text>')
-        p.append(f'<text x="{x + 55}" y="{y1 + 38}" font-size="10.5" text-anchor="middle" fill="#4b5563">{note}</text>')
+        p.append(f'<text x="{x + 55}" y="{y1 + 38}" font-size="10.5" text-anchor="middle" fill="#94a3b8">{note}</text>')
     for nv, lab in [(68.3, "nominal 1-sigma 68.3"), (95.4, "nominal 2-sigma 95.4")]:
         y = y1 - (nv / vmax) * (y1 - y0)
         p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{AMBER}" stroke-dasharray="6 4"/>')
@@ -199,7 +199,7 @@ def error_budget():
         y = y1 - (v / vmax) * (y1 - y0)
         p.append(f'<rect x="{x}" y="{y:.0f}" width="86" height="{y1 - y:.0f}" fill="{colour}"/>')
         p.append(f'<text x="{x + 43}" y="{y - 6:.0f}" font-size="12.5" text-anchor="middle" fill="{INK}">{v}</text>')
-        p.append(f'<text x="{x + 43}" y="{y1 + 18}" font-size="11" text-anchor="middle" fill="#4b5563">{lab}</text>')
+        p.append(f'<text x="{x + 43}" y="{y1 + 18}" font-size="11" text-anchor="middle" fill="#94a3b8">{lab}</text>')
     # panel B: hit rate by aim-error bucket
     p.append(f'<text x="660" y="96" font-size="13.5" font-weight="bold" text-anchor="middle" fill="{INK}">Hit rate by aim error (%)</text>')
     vmax2 = 100.0
@@ -208,7 +208,7 @@ def error_budget():
         y = y1 - (v / vmax2) * (y1 - y0)
         p.append(f'<rect x="{x}" y="{y:.0f}" width="86" height="{y1 - y:.0f}" fill="{colour}"/>')
         p.append(f'<text x="{x + 43}" y="{y - 6:.0f}" font-size="12.5" text-anchor="middle" fill="{INK}">{v}</text>')
-        p.append(f'<text x="{x + 43}" y="{y1 + 18}" font-size="11" text-anchor="middle" fill="#4b5563">{lab}</text>')
+        p.append(f'<text x="{x + 43}" y="{y1 + 18}" font-size="11" text-anchor="middle" fill="#94a3b8">{lab}</text>')
     close_svg(p, "error_budget.svg")
 
 
@@ -244,7 +244,7 @@ def _panel_grid(p, x0, y0, y1, vmax, ticks, unit=""):
     for t in ticks:
         y = y1 - t / vmax * (y1 - y0)
         p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{GRID}"/>')
-        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#4b5563">{t}{unit}</text>')
+        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#94a3b8">{t}{unit}</text>')
 
 
 def aim_error_trace():
@@ -261,7 +261,7 @@ def aim_error_trace():
         _trace(p, x0, y0, y1, 40.0, sig, AMBER, 1.6)
         _trace(p, x0, y0, y1, 40.0, fire, TEAL)
         _trace(p, x0, y0, y1, 40.0, aim, RED)
-    p.append(f'<text x="{x0 + 410}" y="548" font-size="11" text-anchor="middle" fill="#4b5563">time (1 bucket = 25 frames = 1 s)</text>')
+    p.append(f'<text x="{x0 + 410}" y="548" font-size="11" text-anchor="middle" fill="#94a3b8">time (1 bucket = 25 frames = 1 s)</text>')
     close_svg(p, "aim_error_trace.svg")
 
 
@@ -281,7 +281,7 @@ def tracking_intensity():
         pts = " ".join(f"{x0 + i * 820 / (n - 1):.0f},{y1 - v / cmax * (y1 - y0):.0f}" for i, v in enumerate(cum))
         p.append(f'<polyline points="{pts}" fill="none" stroke="{BLUE}" stroke-width="2.2"/>')
         p.append(f'<text x="{x0 + 824}" y="{y1 - cum[-1] / cmax * (y1 - y0) - 8:.0f}" font-size="11" fill="{BLUE}">{cum[-1]} hits</text>')
-    p.append(f'<text x="{x0 + 410}" y="548" font-size="11" text-anchor="middle" fill="#4b5563">time (1 bucket = 25 frames = 1 s)</text>')
+    p.append(f'<text x="{x0 + 410}" y="548" font-size="11" text-anchor="middle" fill="#94a3b8">time (1 bucket = 25 frames = 1 s)</text>')
     close_svg(p, "tracking_intensity.svg")
 
 
@@ -318,7 +318,7 @@ def sigma_calibration():
     def X(s): return x0 + (s - 30) / 55 * 820
     def Y(e): return y1 - e / 80 * (y1 - y0)
     p.append(f'<line x1="{X(30):.0f}" y1="{Y(30):.0f}" x2="{X(80):.0f}" y2="{Y(80):.0f}" stroke="{GRAY}" stroke-dasharray="6 4"/>')
-    p.append(f'<text x="{X(80) - 4:.0f}" y="{Y(80) - 8:.0f}" font-size="10.5" text-anchor="end" fill="#4b5563">calibrated (error = sigma)</text>')
+    p.append(f'<text x="{X(80) - 4:.0f}" y="{Y(80) - 8:.0f}" font-size="10.5" text-anchor="end" fill="#94a3b8">calibrated (error = sigma)</text>')
     for cal, colour, lab in [(V3_CAL, BLUE, "3.avi"), (V4_CAL, TEAL, "4.avi")]:
         pts = [(c, e) for c, e, n in cal if n >= 30]
         line = " ".join(f"{X(c):.0f},{Y(e):.0f}" for c, e in pts)
@@ -348,7 +348,7 @@ def detector_tuning():
     for t in [55, 60, 65, 70]:
         y = y1 - (t - vmin) / (vmax - vmin) * (y1 - y0)
         p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{GRID}"/>')
-        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#4b5563">{t}%</text>')
+        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#94a3b8">{t}%</text>')
     bw, gap = 34, 6
     for gi, video in enumerate(["3.avi", "4.avi"]):
         gx = x0 + 90 + gi * 400
@@ -394,7 +394,7 @@ def sim_scenarios():
     for t in [0, 25, 50, 75, 100]:
         x = x0 + t / 100 * (x1 - x0)
         p.append(f'<line x1="{x:.0f}" y1="86" x2="{x:.0f}" y2="668" stroke="{GRID}"/>')
-        p.append(f'<text x="{x:.0f}" y="688" font-size="10.5" text-anchor="middle" fill="#4b5563">{t}%</text>')
+        p.append(f'<text x="{x:.0f}" y="688" font-size="10.5" text-anchor="middle" fill="#94a3b8">{t}%</text>')
     y = 96
     for lab, d, pk, rk, *_ in SIM_SCEN:
         p.append(f'<text x="{x0}" y="{y + 10}" font-size="12" font-weight="bold" fill="{INK}">{lab}</text>')
@@ -420,11 +420,150 @@ def sim_profile():
             v = row[idx]
             x = cx + 16 + si * 50
             y = y1 - v / vmax * (y1 - y0)
-            c = colour if not (idx == 5 and si == 7) else "#7f1d1d"
+            c = colour if not (idx == 5 and si == 7) else "#f87171"
             p.append(f'<rect x="{x}" y="{y:.0f}" width="36" height="{y1 - y:.0f}" fill="{c}"/>')
             p.append(f'<text x="{x + 18}" y="{y - 5:.0f}" font-size="10" text-anchor="middle" fill="{INK}">{v:g}</text>')
-            p.append(f'<text x="{x + 18}" y="{y1 + 16}" font-size="10.5" text-anchor="middle" fill="#4b5563">S{si + 1}</text>')
+            p.append(f'<text x="{x + 18}" y="{y1 + 16}" font-size="10.5" text-anchor="middle" fill="#94a3b8">S{si + 1}</text>')
     close_svg(p, "sim_profile.svg")
+
+
+
+
+# ------------------------------------------- ballistics model series
+BALLI = {
+    0: [
+        ('17 mm @ 22 m/s (measured)', BLUE, [(1, 0.046), (2, 0.093), (3, 0.14), (4, 0.189), (5, 0.238), (6, 0.289), (7, 0.34), (8, 0.393), (9, 0.446), (10, 0.501)]),
+        ('17 mm @ 25 m/s (old)', GRAY, [(1, 0.04), (2, 0.082), (3, 0.124), (4, 0.166), (5, 0.21), (6, 0.254), (7, 0.3), (8, 0.346), (9, 0.393), (10, 0.441)]),
+        ('42 mm @ 16 m/s (placeholder)', AMBER, [(1, 0.063), (2, 0.126), (3, 0.19), (4, 0.255), (5, 0.32), (6, 0.385), (7, 0.452), (8, 0.519), (9, 0.586), (10, 0.654)]),
+    ],
+    1: [
+        ('17 mm @ 22 m/s (measured)', BLUE, [(1, 0.01), (2, 0.042), (3, 0.095), (4, 0.171), (5, 0.27), (6, 0.395), (7, 0.544), (8, 0.72), (9, 0.924), (10, 1.156)]),
+        ('17 mm @ 25 m/s (old)', GRAY, [(1, 0.008), (2, 0.032), (3, 0.073), (4, 0.132), (5, 0.21), (6, 0.306), (7, 0.421), (8, 0.558), (9, 0.715), (10, 0.895)]),
+        ('42 mm @ 16 m/s (placeholder)', AMBER, [(1, 0.019), (2, 0.078), (3, 0.176), (4, 0.314), (5, 0.494), (6, 0.716), (7, 0.98), (8, 1.288), (9, 1.64), (10, 2.038)]),
+    ],
+}
+
+
+# ------------------------------------------------------- strategy ceiling
+def strategy_ceiling():
+    series = [  # (label, colour, 3.avi, 4.avi) - docs/MEASUREMENTS.md / BASELINE.md
+        ("direct (aim at current plate)", GRAY, 35.5, 56.7),
+        ("point KF", RED, 29.6, 43.1),
+        ("robot EKF (shipped)", BLUE, 67.5, 68.6),
+        ("oracle (cheats: future plate)", AMBER, 99.3, 93.8),
+    ]
+    W, H, x0, y0, y1, vmax = 920, 520, 70, 76, 408, 100.0
+    p = open_svg(W, H, "Strategy ladder on real video (conditional hit rate, %)",
+                 "Same detections, four aiming strategies (N0). The oracle ceiling shows the remaining loss is prediction, not detection or execution. Sources: docs/MEASUREMENTS.md, BASELINE.md")
+    y_axis(p, x0, y0, y1, vmax, [0, 25, 50, 75, 100], "%")
+    bw, gap = 52, 10
+    for gi, video in enumerate(["3.avi", "4.avi"]):
+        gx = x0 + 110 + gi * 400
+        for si, (label, colour, v3, v4) in enumerate(series):
+            v = v3 if gi == 0 else v4
+            x = gx + si * (bw + gap)
+            y = y1 - (v / vmax) * (y1 - y0)
+            p.append(f'<rect x="{x}" y="{y:.0f}" width="{bw}" height="{y1 - y:.0f}" fill="{colour}"/>')
+            p.append(f'<text x="{x + bw / 2}" y="{y - 4:.0f}" font-size="10.5" text-anchor="middle" fill="{INK}">{v}</text>')
+        p.append(f'<text x="{gx + 2 * (bw + gap):.0f}" y="{y1 + 20}" font-size="13" text-anchor="middle" fill="{INK}">{video}</text>')
+    lx = x0 + 10
+    for si, (label, colour, _, _) in enumerate(series):
+        x = lx + (si % 2) * 430
+        y = y1 + 48 + (si // 2) * 20
+        p.append(f'<rect x="{x}" y="{y - 10}" width="12" height="12" fill="{colour}"/>')
+        p.append(f'<text x="{x + 18}" y="{y}" font-size="11" fill="{INK}">{label}</text>')
+    close_svg(p, "strategy_ceiling.svg")
+
+
+# ------------------------------------------------------------ ROI windows
+def roi_windows():
+    series = [  # (label, colour, misses 3.avi, misses 4.avi) - docs/roi_detection.md
+        ("Full frame (reference)", GRAY, 0, 0),
+        ("Prev-observation windows +110", AMBER, 49, 14),
+        ("Tracking-guided +60 (shipped)", TEAL, 3, 15),
+        ("Tracking-guided +110 (rejected)", RED, 48, 98),
+    ]
+    W, H, x0, y0, y1, vmax = 920, 520, 70, 76, 408, 110.0
+    p = open_svg(W, H, "ROI window strategies: armors missed vs full frame",
+                 "Real-video A/B (docs/roi_detection.md). Bigger windows are NOT safer: at +110 px, overlapping windows clip light bars and spawn false armors - the shipped margin is +60 px.")
+    y_axis(p, x0, y0, y1, vmax, [0, 25, 50, 75, 100], "")
+    bw, gap = 52, 10
+    for gi, video in enumerate(["3.avi (slow spin)", "4.avi (fast spin)"]):
+        gx = x0 + 110 + gi * 400
+        for si, (label, colour, v3, v4) in enumerate(series):
+            v = v3 if gi == 0 else v4
+            x = gx + si * (bw + gap)
+            y = y1 - (v / vmax) * (y1 - y0)
+            p.append(f'<rect x="{x}" y="{y:.0f}" width="{bw}" height="{max(y1 - y, 2):.0f}" fill="{colour}"/>')
+            p.append(f'<text x="{x + bw / 2}" y="{y - 4:.0f}" font-size="10.5" text-anchor="middle" fill="{INK}">{v}</text>')
+        p.append(f'<text x="{gx + 2 * (bw + gap):.0f}" y="{y1 + 20}" font-size="13" text-anchor="middle" fill="{INK}">{video}</text>')
+    lx = x0 + 10
+    for si, (label, colour, _, _) in enumerate(series):
+        x = lx + (si % 2) * 430
+        y = y1 + 48 + (si // 2) * 20
+        p.append(f'<rect x="{x}" y="{y - 10}" width="12" height="12" fill="{colour}"/>')
+        p.append(f'<text x="{x + 18}" y="{y}" font-size="11" fill="{INK}">{label}</text>')
+    close_svg(p, "roi_windows.svg")
+
+
+# ------------------------------------------------------------- ballistics
+def ballistics_curves():
+    W, H = 920, 470
+    p = open_svg(W, H, "Ballistics: flight time and level-fire drop vs distance",
+                 "Model curves from the shipped configuration constants (quadratic drag a = -k v^2): 17 mm k=0.019 at the measured 22 m/s and the old 25 m/s; 42 mm k=0.009 at the 16 m/s placeholder. The 25->22 correction alone cost 5.4 pp on video - this is the physics behind it.")
+    panels = [(0, "Flight time (s)", 1, TEAL), (1, "Level-fire drop (m)", 2, RED)]
+    for pi, (key, title, _, _) in enumerate([(0, "Flight time (s)", 0, 0), (1, "Level-fire drop (m)", 0, 0)]):
+        cx = 40 + pi * 450
+        y1, y0 = 350, 120
+        series = BALLI[key]
+        vmax = max(v for _, _, vals in series for _, v in vals) * 1.15
+        p.append(f'<text x="{cx + 200}" y="98" font-size="13.5" font-weight="bold" text-anchor="middle" fill="{INK}">{title}</text>')
+        for t in [0, vmax / 2, vmax]:
+            y = y1 - t / vmax * (y1 - y0)
+            p.append(f'<line x1="{cx + 30}" y1="{y:.0f}" x2="{cx + 400}" y2="{y:.0f}" stroke="{GRID}"/>')
+            p.append(f'<text x="{cx + 24}" y="{y + 4:.0f}" font-size="10" text-anchor="end" fill="#94a3b8">{t:.2f}</text>')
+        for lab, colour, vals in series:
+            pts = " ".join(
+                f"{cx + 30 + (d - 1) / 9 * 370:.0f},{y1 - v / vmax * (y1 - y0):.0f}"
+                for d, v in vals)
+            p.append(f'<polyline points="{pts}" fill="none" stroke="{colour}" stroke-width="2.5"/>')
+            lx = cx + 30 + 370
+            ly = y1 - vals[-1][1] / vmax * (y1 - y0)
+            p.append(f'<text x="{lx + 6:.0f}" y="{ly + 4:.0f}" font-size="10.5" fill="{colour}">{vals[-1][1]:.2f}</text>')
+        for d in (1, 5, 10):
+            x = cx + 30 + (d - 1) / 9 * 370
+            p.append(f'<text x="{x:.0f}" y="{y1 + 18}" font-size="10.5" text-anchor="middle" fill="{INK}">{d} m</text>')
+    lx = 90
+    for lab, colour, _ in BALLI[0]:
+        p.append(f'<rect x="{lx}" y="392" width="12" height="12" fill="{colour}"/>')
+        p.append(f'<text x="{lx + 18}" y="402" font-size="11" fill="{INK}">{lab}</text>')
+        lx += 300
+    close_svg(p, "ballistics_curves.svg")
+
+
+# ------------------------------------------------------------ USB bandwidth
+def usb_bandwidth():
+    rows = [  # (frame size, MB per frame Bayer8, required MB/s at 165 fps)
+        ("1280x720", 0.92, 152), ("1440x1080", 1.56, 257),
+        ("1920x1080", 2.07, 342), ("2560x1440", 3.69, 609),
+    ]
+    W, H, x0, y0, y1, vmax = 920, 500, 70, 76, 388, 680.0
+    p = open_svg(W, H, "Main camera bandwidth at 165 fps (Bayer8, uncompressed)",
+                 "The camera is USB 3.0 but the team's VM link is USB 2.0 (~40 MB/s effective): at 1440x1080 the link caps the stream near 26 fps. Formula and context: docs/camera_hardware.md")
+    y_axis(p, x0, y0, y1, vmax, [0, 170, 340, 510, 680], "")
+    for i, (lab, mb, req) in enumerate(rows):
+        x = x0 + 90 + i * 200
+        y = y1 - req / vmax * (y1 - y0)
+        p.append(f'<rect x="{x}" y="{y:.0f}" width="100" height="{y1 - y:.0f}" fill="{BLUE}"/>')
+        p.append(f'<text x="{x + 50}" y="{y - 6:.0f}" font-size="12" text-anchor="middle" fill="{INK}">{req} MB/s</text>')
+        p.append(f'<text x="{x + 50}" y="{y1 + 20}" font-size="11.5" text-anchor="middle" fill="{INK}">{lab}</text>')
+        fps2 = int(40 / mb)
+        p.append(f'<text x="{x + 50}" y="{y1 + 38}" font-size="10.5" text-anchor="middle" fill="#94a3b8">USB2 cap ~{fps2} fps</text>')
+    for v, colour, lab in [(40, RED, "USB 2.0 effective ~40 MB/s"), (400, TEAL, "USB 3.0 effective ~400 MB/s")]:
+        y = y1 - v / vmax * (y1 - y0)
+        p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{colour}" stroke-dasharray="7 4" stroke-width="1.6"/>')
+        p.append(f'<text x="{x0 + 824}" y="{y + 4:.0f}" font-size="10.5" fill="{colour}">{lab}</text>')
+    close_svg(p, "usb_bandwidth.svg")
 
 
 
@@ -442,3 +581,7 @@ if __name__ == "__main__":
     detector_tuning()
     sim_scenarios()
     sim_profile()
+    strategy_ceiling()
+    roi_windows()
+    ballistics_curves()
+    usb_bandwidth()

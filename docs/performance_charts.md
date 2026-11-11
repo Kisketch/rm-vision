@@ -126,3 +126,41 @@
   10.7 cm、ω 误差 1.68 rad/s：恒速模型对 5–8 m/s² 侧向加速度的
   固有滞后，是模型问题不是噪声问题（见 README Limitations）。
 - 出处：README.md / BASELINE.md §8（autoaim_sim 地面真值）。
+
+## 13. 策略阶梯：离天花板还差多少
+
+![Strategy ladder](charts/strategy_ceiling.svg)
+
+- **读法**：同一批检测、四种瞄准策略。oracle 是"作弊看未来"的
+  上限（99.3/93.8）——现行 67.5/68.6 与上限的差距几乎全在预测，
+  不在检测与执行，与第 6、7 节互相印证。
+- 出处：docs/MEASUREMENTS.md、BASELINE.md。
+
+## 14. ROI 窗口：边距不是越大越安全
+
+![ROI windows](charts/roi_windows.svg)
+
+- **结论**：跟踪预测窗口 +60 px 把慢旋漏检从 49 压到 3；+110 px
+  因窗口重叠截断灯条反而暴涨到 98（快旋）。窗口策略的甜点是
+  实测出来的，不是拍出来的。
+- 出处：docs/roi_detection.md。
+
+## 15. 弹道曲线：25 → 22 m/s 的物理代价
+
+![Ballistics curves](charts/ballistics_curves.svg)
+
+- **读法**：按出厂配置常数（二次阻力）算的模型曲线：10 m 处
+  17 mm 飞行时间 0.50 s（22 m/s）对 0.44 s（25 m/s），平射下坠
+  1.16 m 对 0.90 m——旧基线被 25 m/s 美化的 5.4 pp 就是这条
+  物理差距。42 mm 曲线用的是占位弹速 16 m/s，待实测替换。
+- 出处：core/config/default.yaml 弹道常数（17 mm 弹速为实测值）。
+
+## 16. 相机带宽：165 fps 需要 USB3 的账
+
+![USB bandwidth](charts/usb_bandwidth.svg)
+
+- **弱项**：主相机 165 fps 的未压缩带宽在常用分辨率下是
+  152–609 MB/s，而队伍虚拟机链路只有 USB 2.0 的约 40 MB/s——
+  1440×1080 下帧率会被卡在约 26 fps。这是上车前必须实测的
+  第一笔账（路线图 P1-5）。
+- 出处：docs/camera_hardware.md（带宽公式按 Bayer8 计算）。

@@ -52,3 +52,5 @@
 远超 USB 2.0 约 40 MB/s 的有效带宽，即该分辨率下帧率会被带宽卡在
 约 26 fps。实机分辨率确认后，按上式核算并实测实际出图帧率，不要
 默认 165 fps 在 USB2 链路上成立。
+
+![Main camera bandwidth at 165 fps](charts/usb_bandwidth.svg)

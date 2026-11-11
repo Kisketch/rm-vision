@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+<rect width="920" height="520" fill="#0f172a"/>
+<text x="24" y="30" font-size="17" font-weight="bold" fill="#e2e8f0">Strategy ladder on real video (conditional hit rate, %)</text>
+<text x="24" y="50" font-size="11.5" fill="#94a3b8">Same detections, four aiming strategies (N0). The oracle ceiling shows the remaining loss is prediction, not detection or execution. Sources: docs/MEASUREMENTS.md, BASELINE.md</text>
+<line x1="70" y1="408" x2="890" y2="408" stroke="#1e293b"/>
+<text x="64" y="412" font-size="10.5" text-anchor="end" fill="#94a3b8">0%</text>
+<line x1="70" y1="325" x2="890" y2="325" stroke="#1e293b"/>
+<text x="64" y="329" font-size="10.5" text-anchor="end" fill="#94a3b8">25%</text>
+<line x1="70" y1="242" x2="890" y2="242" stroke="#1e293b"/>
+<text x="64" y="246" font-size="10.5" text-anchor="end" fill="#94a3b8">50%</text>
+<line x1="70" y1="159" x2="890" y2="159" stroke="#1e293b"/>
+<text x="64" y="163" font-size="10.5" text-anchor="end" fill="#94a3b8">75%</text>
+<line x1="70" y1="76" x2="890" y2="76" stroke="#1e293b"/>
+<text x="64" y="80" font-size="10.5" text-anchor="end" fill="#94a3b8">100%</text>
+<rect x="180" y="290" width="52" height="118" fill="#64748b"/>
+<text x="206.0" y="286" font-size="10.5" text-anchor="middle" fill="#e2e8f0">35.5</text>
+<rect x="242" y="310" width="52" height="98" fill="#ef4444"/>
+<text x="268.0" y="306" font-size="10.5" text-anchor="middle" fill="#e2e8f0">29.6</text>
+<rect x="304" y="184" width="52" height="224" fill="#3b82f6"/>
+<text x="330.0" y="180" font-size="10.5" text-anchor="middle" fill="#e2e8f0">67.5</text>
+<rect x="366" y="78" width="52" height="330" fill="#f59e0b"/>
+<text x="392.0" y="74" font-size="10.5" text-anchor="middle" fill="#e2e8f0">99.3</text>
+<text x="304" y="428" font-size="13" text-anchor="middle" fill="#e2e8f0">3.avi</text>
+<rect x="580" y="220" width="52" height="188" fill="#64748b"/>
+<text x="606.0" y="216" font-size="10.5" text-anchor="middle" fill="#e2e8f0">56.7</text>
+<rect x="642" y="265" width="52" height="143" fill="#ef4444"/>
+<text x="668.0" y="261" font-size="10.5" text-anchor="middle" fill="#e2e8f0">43.1</text>
+<rect x="704" y="180" width="52" height="228" fill="#3b82f6"/>
+<text x="730.0" y="176" font-size="10.5" text-anchor="middle" fill="#e2e8f0">68.6</text>
+<rect x="766" y="97" width="52" height="311" fill="#f59e0b"/>
+<text x="792.0" y="93" font-size="10.5" text-anchor="middle" fill="#e2e8f0">93.8</text>
+<text x="704" y="428" font-size="13" text-anchor="middle" fill="#e2e8f0">4.avi</text>
+<rect x="80" y="446" width="12" height="12" fill="#64748b"/>
+<text x="98" y="456" font-size="11" fill="#e2e8f0">direct (aim at current plate)</text>
+<rect x="510" y="446" width="12" height="12" fill="#ef4444"/>
+<text x="528" y="456" font-size="11" fill="#e2e8f0">point KF</text>
+<rect x="80" y="466" width="12" height="12" fill="#3b82f6"/>
+<text x="98" y="476" font-size="11" fill="#e2e8f0">robot EKF (shipped)</text>
+<rect x="510" y="466" width="12" height="12" fill="#f59e0b"/>
+<text x="528" y="476" font-size="11" fill="#e2e8f0">oracle (cheats: future plate)</text>
+</svg>
