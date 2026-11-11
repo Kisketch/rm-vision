@@ -236,6 +236,8 @@ each figure sourced and captioned in
 
 ![Compute cost, legacy vs current](docs/charts/latency.svg)
 
+![Aim vs fire error over time](docs/charts/aim_error_trace.svg)
+
 ### Calibration and hardware values (as shipped in `core/config/default.yaml`)
 
 Recovered from the team's previous on-robot codebase, where they were
