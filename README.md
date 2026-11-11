@@ -164,12 +164,15 @@ vs. the reference assumptions), not the code; both configurations are
 tracked in `BASELINE.md` and gated separately by `tools/regression.py`.
 
 **Reproduce them yourself.** The two recordings (1440×1080, 25 fps,
-indoor dark-field, red #3 infantry target), their SHA-256 sums and the
-detection caches are published in the companion data repository
-[Kisketch/rm-videos](https://github.com/Kisketch/rm-videos). Download the
-release assets into `video/`, then:
+indoor dark-field, red #3 infantry target) are published as assets of
+this repository's own
+[`data-v1-2026-11-09` release](https://github.com/Kisketch/rm-vision/releases/tag/data-v1-2026-11-09),
+which carries their SHA-256 sums; the detection caches are in
+`tools/offline_eval/`. Download the assets into `video/` (4.avi ships as
+two parts — concatenate them as the release notes describe), then:
 
 ```bash
+gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video
 python3 tools/regression.py            # video gate (frozen reference) + simulator gate
 ```
 

@@ -1,10 +1,10 @@
 # BASELINE — 2026-11-04 基线快照
 
-> **数据获取（2026-11-10 起公开）**：本文件用到的两段视频（3.avi / 4.avi，含 SHA-256）
-> 发布在公开数据仓 [Kisketch/rm-videos](https://github.com/Kisketch/rm-videos) 的
-> Release `v1-2026-11-09` 中。下载到本仓 `video/` 目录后即可运行
-> `tools/regression.py` 复现 §10/§11 的全部数字：
-> `gh release download v1-2026-11-09 --repo Kisketch/rm-videos -D ./video`
+> **数据获取**：本文件用到的两段视频（3.avi / 4.avi，含 SHA-256）发布在本仓自己的
+> Release [`data-v1-2026-11-09`](https://github.com/Kisketch/rm-vision/releases/tag/data-v1-2026-11-09)
+> 附件中（4.avi 因上传上限分两片，拼接方法与分片哈希见 Release 说明）。
+> 下载到本仓 `video/` 目录后即可运行 `tools/regression.py` 复现 §10/§11 的全部数字：
+> `gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video`
 
 > Stage 0 的产物：锁定"改进前"的数字，之后每一次改动都拿它对比。
 > 所有数字都来自本目录 `reports/` 下的原始输出，环境与命令见下。

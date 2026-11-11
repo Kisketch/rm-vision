@@ -11,6 +11,6 @@
 | `evaldriver_vision.cpp` | 同上，单仓合并后版本（接入 `appendSentryStrategy`） |
 | `tg_smoke.cpp` | SentryVision 跟踪预测 ROI 的在线冒烟（ROI 开/关观测一致性） |
 
-输入数据（视频与检测缓存）属私有数据仓 `rm-videos`，不在本仓内；台架在本仓
+输入数据：视频在本仓 Release `data-v1-2026-11-09` 附件中，检测缓存在本目录；台架在本仓
 构建产物（`build/core` 的 `autoaim_core`）之上链接，具体编译命令见各源文件
 头部注释与 `docs/monorepo_migration.md` 的回归证据一节。

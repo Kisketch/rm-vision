@@ -86,7 +86,7 @@
 ## 不在本仓内的材料（明确排除，非遗失）
 
 - 作业仓 `rm-armor-detection` 的任何文件——按用户要求不触碰、不复制。
-- 视频与检测缓存——在数据仓 `rm-videos`（2026-11-10 起按用户决定公开，Release 附件形式），不进本仓 git（单文件超 GitHub 100 MB 限制）。
+- 视频数据——在本仓 Release `data-v1-2026-11-09` 的附件中（3.avi 整文件；4.avi 分两片，拼接后按 Release 说明的 SHA-256 校验）；不进 git 历史（单文件超 GitHub 100 MB 上限）。检测缓存在 `tools/offline_eval/`。
 - 各轮交付的代码快照目录——代码已合入本仓，理由与清单见 `archive/README.md`。
 - Claude Code 配置包的 zip/install.sh/全局配置——分发工具，内容已入仓
   （CLAUDE.md + .claude/），包本体留在交付渠道。

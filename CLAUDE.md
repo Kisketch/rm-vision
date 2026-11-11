@@ -9,7 +9,7 @@ C++17 / CMake / OpenCV 4。规则以 2026 赛季为准，2027 仅作前瞻。
 `docs/monorepo_migration.md`，离线 N0 复现用 `core/config/video_reference.yaml`。
 公开仓 https://github.com/Kisketch/rm-vision ，CI 见 GitHub Actions。
 旧两仓 rm-autoaim / rm-sentry-integration 已归档只读，**不要再往旧仓推代码**；
-作业仓 rm-armor-detection 与数据仓 rm-videos 不在本仓范围内，**一律不动**。
+作业仓 rm-armor-detection 不在本仓范围内，**一律不动**；回归视频在本仓 Release `data-v1-2026-11-09` 附件中。
 
 ## 构建与测试（改任何代码后必须跑，Linux）
 
@@ -97,8 +97,8 @@ ctest --test-dir build --output-on-failure   # 3 套: autoaim_tests / sentry_tes
 
 - 真实视频回归基线 N0：整车 EKF 命中率 67.5% / 68.6%、预测中位 14.3 / 13.3 px；
   哨兵策略（哨兵参数）67.6% / 71.9%。改核心后波动 >0.1pp / >0.1px 必须解释原因。
-- 回归视频来自私有仓 rm-videos：**视频文件及由其得到的数据一律不得提交进本仓**，
-  只在本地跑，只报汇总数字。
+- 回归视频在本仓 Release `data-v1-2026-11-09` 附件中（公开）：**视频文件本身
+  不得提交进 git 历史**（单文件超限），只在本地跑。
 - 只能上车验、离线不许下结论：attitude misses ≈ 0、reconnects = 0、USB 拔插重连、
   真实 SDK 的 ABI、云台运动下 TG 投影精度。
 

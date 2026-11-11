@@ -34,4 +34,4 @@
   每轮的文档部分已分别进入 `docs/`（如 `bullet_speed.md`、
   `timestamp_alignment.md`、`software_completion.md`）。
 - 作业仓 `rm-armor-detection` 的文件：属于该仓自身，按用户要求不触碰、不复制。
-- 视频与检测缓存数据：私有数据（`rm-videos` 仓），不进入公开仓。
+- 视频数据：在本仓 Release `data-v1-2026-11-09` 附件中，不进 git 历史；检测缓存在 `tools/offline_eval/`。
