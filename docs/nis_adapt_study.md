@@ -128,6 +128,8 @@ q_acc_adapt=1, q_acc_thresh=1.6, q_acc_frames=1, q_acc_boost=16, q_acc_release=0
 
 **过程诚实记录**：本目录 `results/superseded/` 保存着一轮更早的 "on" 结果，其数值与 off 逐字节相同——经复查证实那轮运行旋钮实际未生效（守门配置未被驱动采用），属无效运行。本报告的守门数字全部来自修正后以可复现守门 YAML 重跑的认证运行（off 四格同时复现冻结基线并与旧存档逐字节一致，可互证管线无误）。
 
+![NIS-adaptive q study](charts/nis_adapt.svg)
+
 ## 6. 结论与出厂建议
 
 **否决出厂开启**，理由：

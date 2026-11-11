@@ -83,6 +83,8 @@ ctest --test-dir build --output-on-failure
 | sentry（多目标+前哨站） | 1961 | 1918 | 1314 | **68.5%** | **9.6** |
 | oracle | 3229 | 3198 | 3001 | 93.8% | 22.0 |
 
+![Strategy ladder on real video](charts/strategy_ceiling.svg)
+
 跟踪比例 0.933 / 0.928；有装甲板帧比例 0.965 / 0.979。
 sentry 策略命中率略高、hits/s 略低，原因是 `TargetManager` 在 DETECTING 阶段
 不轻易开火 + 目标切换滞回；这是“命中率优先”的默认取舍。

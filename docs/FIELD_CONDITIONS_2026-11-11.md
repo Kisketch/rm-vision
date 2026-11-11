@@ -123,6 +123,8 @@ TRACKING 降级，而开火门控要求 TRACKING。tracking ratio 同步掉到 0
 "60 ms 里约一半是采集链路"的证据，**不是**把默认改小 30 ms 的理由。上机请用
 `sentry_robot --calib-delay` 标定。
 
+![Field-condition stress](charts/field_conditions.svg)
+
 ## 与 docs/fps_ablation.md 的差异
 
 `docs/fps_ablation.md`（A-01）记录 12.5 fps 下 3.avi 36.6%、4.avi 3.6%，与本轮
