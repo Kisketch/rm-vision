@@ -146,7 +146,8 @@ AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) const {
     const double lead = cfg_.phase_lead_deg * kPi / 180.0;
     int k = 0;
     double facing = 0;
-    for (int it = 0; it < 4; ++it) {
+    bool converged = false;
+    for (int it = 0; it < 6; ++it) {  // 6 iterations: the fixed point contracts at ~v_radial/v_bullet per step; 4 was not always enough at long range / low bullet speed (measured 6.8% non-converged over a range/speed/spin census)
         x = tracker.predict(t0 + t_fly);
         k = selectArmor(tracker, x, previous, facing);
         cv::Vec3d target;
@@ -168,10 +169,11 @@ AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) const {
         if (!aimAt(ball_, target, tmp)) return cmd;
         const double new_t = tmp.t_fly;
         cmd = tmp;
-        if (std::abs(new_t - t_fly) < 1e-4) break;
+        if (std::abs(new_t - t_fly) < 1e-4) { converged = true; break; }
         t_fly = new_t;
     }
     cmd.valid = true;
+    cmd.converged = converged;
     cmd.center_mode = center_mode;
     cmd.armor_k = k;
     last_armor_ = k;  // committed choice for the next frame's hysteresis
@@ -179,9 +181,16 @@ AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) const {
     cmd.t_impact = t0 + cmd.t_fly;
 
     // Uncertainty of the aimed plate's lateral position at impact time.
+    // WITH process noise: F P F' alone is the covariance of the current
+    // estimate propagated deterministically - it omits the target's own
+    // manoeuvre uncertainty over the flight horizon and understates the
+    // true forecast spread, which would flatter the fire gate below.
+    // The gate still defaults OFF in every shipped config: Q is tuned
+    // for tracking response, not calibrated as a forecast distribution,
+    // so sigma_lat is a diagnostic until that calibration exists.
     const ArmorGeometry& geo = geometryOf(tracker.armor_type);
     {
-        const RobotTracker::Mat Pp = tracker.predictCovariance(cmd.t_impact, false);
+        const RobotTracker::Mat Pp = tracker.predictCovariance(cmd.t_impact, true);
         const auto J = tracker.armorJacobian(x, k);
         const cv::Matx33d S = J * Pp * J.t();
         const cv::Vec3d n(-std::sin(cmd.yaw), std::cos(cmd.yaw), 0);
@@ -202,6 +211,11 @@ AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) const {
     } else {
         cmd.fire = tracking && warmed && confident && std::abs(cmd.facing_deg) < cfg_.max_fire_facing_deg;
     }
+    // A non-converged command pairs a target state predicted at one flight
+    // time with a ballistic solution for another (typically the plate
+    // selection oscillating at a switch boundary).  Keep tracking with it,
+    // but never fire on it.
+    if (!converged) cmd.fire = false;
     applyAimOffsets(cfg_, cmd);
     rate_.update(cmd.yaw, cmd.pitch, now, cfg_.gimbal_max_rate, cmd.yaw_rate, cmd.pitch_rate);
     return cmd;
@@ -217,16 +231,18 @@ AimCommand PointAimer::aim(const PointTracker& tracker, double now) const {
     }
     const double t0 = now + cfg_.latency;
     double t_fly = flightGuess(ball_, tracker.position(tracker.predict(t0)));
-    for (int it = 0; it < 4; ++it) {
+    bool converged = false;
+    for (int it = 0; it < 6; ++it) {  // 6 iterations: the fixed point contracts at ~v_radial/v_bullet per step; 4 was not always enough at long range / low bullet speed (measured 6.8% non-converged over a range/speed/spin census)
         AimCommand tmp;
         if (!aimAt(ball_, tracker.position(tracker.predict(t0 + t_fly)), tmp)) return cmd;
         cmd = tmp;
-        if (std::abs(tmp.t_fly - t_fly) < 1e-4) break;
+        if (std::abs(tmp.t_fly - t_fly) < 1e-4) { converged = true; break; }
         t_fly = tmp.t_fly;
     }
     cmd.valid = true;
+    cmd.converged = converged;
     cmd.t_impact = t0 + cmd.t_fly;
-    cmd.fire = true;
+    cmd.fire = converged;  // never fire on an inconsistent solution (see RobotAimer)
     applyAimOffsets(cfg_, cmd);
     rate_.update(cmd.yaw, cmd.pitch, now, cfg_.gimbal_max_rate, cmd.yaw_rate, cmd.pitch_rate);
     return cmd;
@@ -302,7 +318,8 @@ AimCommand RobotAimer::aim(const TargetState& target, double now) const {
     const bool center_mode = std::abs(target.omega) > cfg_.center_mode_omega;
     int k = 0;
     double facing = 0;
-    for (int it = 0; it < 4; ++it) {
+    bool converged = false;
+    for (int it = 0; it < 6; ++it) {  // 6 iterations: the fixed point contracts at ~v_radial/v_bullet per step; 4 was not always enough at long range / low bullet speed (measured 6.8% non-converged over a range/speed/spin census)
         k = selectArmor(target, t0 + t_fly, previous, facing);
         const ArmorState a = target.armorAt(k, t0 + t_fly);
         cv::Vec3d aim_point;
@@ -332,10 +349,11 @@ AimCommand RobotAimer::aim(const TargetState& target, double now) const {
         cmd.center_mode = center_mode;
         cmd.t_impact = t0 + cmd.t_fly;
         cmd.sigma_lat = a.sigma_lat;
-        if (std::abs(new_t - t_fly) < 1e-4) break;
+        if (std::abs(new_t - t_fly) < 1e-4) { converged = true; break; }
         t_fly = new_t;
     }
     cmd.valid = true;
+    cmd.converged = converged;
     last_armor_ = k;  // committed choice for the next frame's hysteresis
 
     const ArmorGeometry& geo = geometryOf(target.type);
@@ -353,6 +371,7 @@ AimCommand RobotAimer::aim(const TargetState& target, double now) const {
     } else {
         cmd.fire = tracking && confident && std::abs(cmd.facing_deg) < cfg_.max_fire_facing_deg;
     }
+    if (!converged) cmd.fire = false;  // never fire on an inconsistent solution (see RobotAimer)
     applyAimOffsets(cfg_, cmd);
     rate_.update(cmd.yaw, cmd.pitch, now, cfg_.gimbal_max_rate, cmd.yaw_rate, cmd.pitch_rate);
     return cmd;

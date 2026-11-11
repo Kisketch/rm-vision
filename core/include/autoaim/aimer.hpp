@@ -36,6 +36,7 @@ struct AimCommand {
     double facing_deg = 0;
     double distance = 0;
     double sigma_lat = 0;       // predicted lateral std of the aimed plate at impact (m)
+    bool converged = true;      // flight-time fixed-point iteration met its tolerance
 };
 
 // First-order gimbal with a rate limit - enough to make "chasing every plate"

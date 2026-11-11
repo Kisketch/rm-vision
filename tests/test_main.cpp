@@ -569,6 +569,89 @@ static void testClockAligner() {
     std::printf("clock aligner: offset error %.2e s\n", std::abs(al.offset() - true_offset));
 }
 
+static void testStaleFrameRejected() {
+    // A duplicate or out-of-order frame must not touch the filter state:
+    // predictTo() no-ops for dt <= 0, so without an explicit guard the old
+    // measurement would be applied to the current state as-is.
+    CameraConfig cc;
+    CameraModel cam(cc);
+    TrackerConfig tc;
+    RobotTracker tr(tc, cam);
+    Spinner sp;
+    double t_last = 0;
+    for (int n = 0; n < 60; ++n) {
+        t_last = n / 50.0;
+        tr.update(sp.frame(t_last, n));
+    }
+    CHECK(tr.state() == TrackState::TRACKING, "precondition: tracking");
+    const RobotTracker::Vec before = tr.predict(t_last + 0.3);
+    FrameObservations dup = sp.frame(t_last, 900);          // same stamp
+    tr.update(dup);
+    CHECK(std::string(tr.diagnostic_event) == "stale_frame", "duplicate stamp rejected (%s)", tr.diagnostic_event);
+    FrameObservations old = sp.frame(t_last - 0.5, 901);    // older stamp
+    tr.update(old);
+    CHECK(std::string(tr.diagnostic_event) == "stale_frame", "old stamp rejected (%s)", tr.diagnostic_event);
+    const RobotTracker::Vec after = tr.predict(t_last + 0.3);
+    double drift = 0;
+    for (int i = 0; i < RobotTracker::N; ++i) drift = std::max(drift, std::abs(after[i] - before[i]));
+    CHECK(drift == 0.0, "state untouched by stale frames (drift %.3g)", drift);
+    std::printf("stale frames: rejected, state bit-identical\n");
+}
+
+static void testYawNisOrderRobustness() {
+    // The yaw-NIS adaptation aggregates ALL of a frame's matches (mean).
+    // Feeding the same multi-plate frames in reverse observation order
+    // must land the adaptation in nearly the same place; with the old
+    // last-match-only rule the two runs diverged at first order.
+    CameraConfig cc;
+    CameraModel cam(cc);
+    TrackerConfig tc;
+    tc.r_yaw = 0.01;         // the tuned YAML values - the struct defaults
+    tc.r_yaw_head_on = 0.02; // (0.06/0.25) damp the yaw NIS below engagement
+    RobotTracker ab(tc, cam), ba(tc, cam);
+    // Custom frames (not Spinner): a wide visibility gate so two plates are
+    // present nearly every frame, and a per-plate yaw bias keyed to the
+    // plate index - even plates +0.30 rad, odd plates +0.05 rad.  The two
+    // plates' yaw NIS then differ ~25x, which is exactly the case where
+    // last-match-only adaptation becomes order-dependent; the frame mean
+    // is not.  (A single sporadic biased frame would not engage the EMA
+    // at all - it answers sustained phase error, by design.)
+    const cv::Vec3d c{5, 0.2, -0.1};
+    const double w = 3.0, r = 0.24, los = std::atan2(c[1], c[0]);
+    for (int n = 0; n < 200; ++n) {
+        const double t = n / 50.0;
+        FrameObservations f;
+        f.frame = n, f.stamp = t;
+        for (int k = 0; k < 4; ++k) {
+            const double yaw = 0.2 + w * t + kPi / 2 * k;
+            if (std::abs(wrapAngle(yaw - los)) > 1.45) continue;
+            ArmorObservation o;
+            o.position = {c[0] - r * std::cos(yaw), c[1] - r * std::sin(yaw), c[2]};
+            o.distance = cv::norm(o.position);
+            o.yaw = wrapAngle(yaw + (k % 2 == 0 ? 0.30 : 0.05));
+            o.det.number = "3";
+            o.det.left.length = o.det.right.length = 20;
+            o.image_center_dist = 100;
+            f.armors.push_back(o);
+        }
+        if (f.armors.size() < 2) continue;
+        ab.update(f);
+        std::reverse(f.armors.begin(), f.armors.end());
+        ba.update(f);
+    }
+    CHECK(ab.state() == TrackState::TRACKING && ba.state() == TrackState::TRACKING, "both tracking");
+    // Engaged = above the 1.0 floor both runs sit at on clean frames.
+    // (At a much larger corruption, 0.5 rad, the two runs' STATES diverge
+    // into different association basins - sequential updates plus greedy
+    // association are order-sensitive at that scale, a separate effect
+    // from the NIS aggregation tested here.)
+    CHECK(ab.qYawScale() > 1.02 && ba.qYawScale() > 1.02, "adaptation engaged (ab %.3f ba %.3f)", ab.qYawScale(),
+          ba.qYawScale());
+    const double d = std::abs(ab.qYawScale() - ba.qYawScale());
+    CHECK(d < 0.5, "yaw adaptation order gap %.3f (ab %.3f ba %.3f)", d, ab.qYawScale(), ba.qYawScale());
+    std::printf("yaw NIS order: q_yaw_scale ab %.3f ba %.3f (gap %.3f)\n", ab.qYawScale(), ba.qYawScale(), d);
+}
+
 static void testClockAlignerDrift() {
     // Sustained-run behaviour (review request): the remote clock runs
     // 200 ppm fast for 60 simulated seconds at 165 Hz.  The aligner does
@@ -1001,6 +1084,8 @@ int main() {
     testAimerRates();
     testKeypointDetector();
     testPoseBuffer();
+    testStaleFrameRejected();
+    testYawNisOrderRobustness();
     testClockAligner();
     testClockAlignerDrift();
     testPoseBufferExtrapolation();

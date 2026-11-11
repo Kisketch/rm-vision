@@ -67,13 +67,17 @@ public:
 
     // State extrapolated to time t (constant velocity / constant angular velocity).
     Vec predict(double t) const;
-    // Covariance extrapolated to time t. Without process noise it measures how
-    // well the *current* state is known (Q is tuned for responsiveness, so the
-    // full prediction covariance is not a calibrated uncertainty).
+    // Covariance extrapolated to time t. With process noise it is the full
+    // forecast covariance F P F' + Q(dt) - the form the aimers use for
+    // sigma_lat, since a fire gate must not understate the spread.  Caveat:
+    // Q is tuned for responsiveness, not calibrated as a forecast
+    // distribution, so sigma magnitudes are relative, not absolute (which
+    // is why the fire gate itself defaults off in the shipped configs).
     Mat predictCovariance(double t, bool with_process_noise = true) const;
     // d armorPosition / d x
     cv::Matx<double, 3, N> armorJacobian(const Vec& x, int k) const;
     double qScale() const { return q_scale_; }
+    double qYawScale() const { return q_yaw_scale_; }
     // Armor k of a state: position, yaw.
     cv::Vec3d armorPosition(const Vec& x, int k) const;
     double armorYaw(const Vec& x, int k) const;

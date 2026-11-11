@@ -97,7 +97,9 @@ class MvsSource::Impl {
 public:
     void* handle = nullptr;
     ClockAligner aligner;
-    double tick_freq = 1.0e9;  // replaced by the camera's TimestampTickFrequency
+    double tick_freq = 0;              // set from the camera (or a verified override) in open()
+    double exposure_us_actual = 0;     // read back from the camera in open()
+    int nodata_streak = 0;             // consecutive grab timeouts
 
     ~Impl() { close(); }
 
@@ -121,25 +123,53 @@ public:
         ret = MV_CC_OpenDevice(handle, MV_ACCESS_Exclusive, 0);
         if (ret != MV_OK) throw std::runtime_error(mvError("OpenDevice", ret));
 
-        // GigE: use the recommended packet size when the camera offers one.
+        // GigE: use the recommended packet size when the camera offers one
+        // (an optimisation hint - the only set that stays best-effort).
         const int packet = MV_CC_GetOptimalPacketSize(handle);
         if (packet > 0) MV_CC_SetIntValueEx(handle, "GevSCPSPacketSize", packet);
 
+        // Every other parameter is load-bearing (the exposure centre math
+        // below assumes the configured exposure): a failed set must stop
+        // startup, not silently diverge from what the software believes.
+        auto set = [](const char* what, int r) {
+            if (r != MV_OK) throw std::runtime_error(mvError(what, r));
+        };
         if (cfg.hardware_trigger) {
-            MV_CC_SetEnumValueByString(handle, "TriggerMode", "On");
-            MV_CC_SetEnumValueByString(handle, "TriggerSource", "Line0");
+            set("SetTriggerMode", MV_CC_SetEnumValueByString(handle, "TriggerMode", "On"));
+            set("SetTriggerSource", MV_CC_SetEnumValueByString(handle, "TriggerSource", "Line0"));
         } else {
-            MV_CC_SetEnumValueByString(handle, "TriggerMode", "Off");
+            set("SetTriggerMode", MV_CC_SetEnumValueByString(handle, "TriggerMode", "Off"));
         }
-        MV_CC_SetEnumValueByString(handle, "ExposureAuto", "Off");
-        MV_CC_SetFloatValue(handle, "ExposureTime", static_cast<float>(cfg.exposure_us));
-        MV_CC_SetBoolValue(handle, "AcquisitionFrameRateEnable", true);
-        MV_CC_SetFloatValue(handle, "AcquisitionFrameRate", static_cast<float>(cfg.frame_rate));
+        set("SetExposureAuto", MV_CC_SetEnumValueByString(handle, "ExposureAuto", "Off"));
+        set("SetExposureTime", MV_CC_SetFloatValue(handle, "ExposureTime", static_cast<float>(cfg.exposure_us)));
+        set("SetFrameRateEnable", MV_CC_SetBoolValue(handle, "AcquisitionFrameRateEnable", true));
+        set("SetFrameRate", MV_CC_SetFloatValue(handle, "AcquisitionFrameRate", static_cast<float>(cfg.frame_rate)));
 
+        // The value the camera actually runs is the one the stamp math
+        // must use (cameras quantise exposure to their own steps).
+        MVCC_FLOATVALUE expv;
+        std::memset(&expv, 0, sizeof(expv));
+        ret = MV_CC_GetFloatValue(handle, "ExposureTime", &expv);
+        if (ret != MV_OK) throw std::runtime_error(mvError("GetExposureTime(readback)", ret));
+        exposure_us_actual = expv.fCurValue;
+
+        // A wrong tick frequency is worse than a wrong offset: the time
+        // SCALE breaks and the error grows for as long as the camera runs.
+        // Never guess it - refuse to start without a reported value or an
+        // explicitly configured, model-verified override.
         MVCC_INTVALUE_EX tick;
         std::memset(&tick, 0, sizeof(tick));
-        if (MV_CC_GetIntValueEx(handle, "TimestampTickFrequency", &tick) == MV_OK && tick.nCurValue > 0)
+        if (MV_CC_GetIntValueEx(handle, "TimestampTickFrequency", &tick) == MV_OK && tick.nCurValue > 0) {
             tick_freq = static_cast<double>(tick.nCurValue);
+        } else if (cfg.tick_freq_override > 0) {
+            tick_freq = cfg.tick_freq_override;
+        } else {
+            throw std::runtime_error(
+                "MVS: TimestampTickFrequency unavailable and no tick_freq_override configured; "
+                "hardware timestamps would be unscaled");
+        }
+        std::fprintf(stderr, "MvsSource: tick frequency %.0f Hz, exposure %.0f us read back (configured %.0f us)\n",
+                     tick_freq, exposure_us_actual, cfg.exposure_us);
 
         ret = MV_CC_StartGrabbing(handle);
         if (ret != MV_OK) throw std::runtime_error(mvError("StartGrabbing", ret));
@@ -160,8 +190,25 @@ MvsSource::~MvsSource() = default;
 bool MvsSource::grab(SourceFrame& out) {
     MV_FRAME_OUT frame;
     std::memset(&frame, 0, sizeof(frame));
-    const int ret = MV_CC_GetImageBuffer(impl_->handle, &frame, 1000);
-    if (ret != MV_OK) return false;
+    // A grab timeout (MV_E_NODATA: GigE hiccup, a late hardware trigger)
+    // is a skipped frame, not the end of the stream - callers run
+    // `while (grab(...))`, so returning false here would kill the whole
+    // process on one transient stall.  Retry a bounded streak; only hard
+    // errors (and a long, unbroken stall) end the stream.
+    int ret = MV_OK;
+    for (;;) {
+        ret = MV_CC_GetImageBuffer(impl_->handle, &frame, 1000);
+        if (ret == MV_OK) {
+            impl_->nodata_streak = 0;
+            break;
+        }
+        if (ret == static_cast<int>(MV_E_NODATA) && ++impl_->nodata_streak <= 10) {
+            if (impl_->nodata_streak == 1 || impl_->nodata_streak == 10)
+                std::fprintf(stderr, "MvsSource: grab timeout (streak %d)\n", impl_->nodata_streak);
+            continue;
+        }
+        return false;
+    }
 
     const MV_FRAME_OUT_INFO_EX& info = frame.stFrameInfo;
     const std::uint64_t ticks =
@@ -169,9 +216,9 @@ bool MvsSource::grab(SourceFrame& out) {
     const double device_start = static_cast<double>(ticks) / impl_->tick_freq;
     impl_->aligner.addPair(device_start, steadySeconds());
     // Device stamp = start of exposure; the pose that belongs to the image
-    // is the one at its centre.
+    // is the one at its centre (with the exposure the camera READ BACK).
     out.exposure_stamp =
-        impl_->aligner.toLocal(device_start) + cfg_.exposure_us * 0.5e-6 - cfg_.stamp_offset_us * 1e-6;
+        impl_->aligner.toLocal(device_start) + impl_->exposure_us_actual * 0.5e-6 - cfg_.stamp_offset_us * 1e-6;
     out.index = index_++;
     out.hw_stamp = true;
 

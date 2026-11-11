@@ -281,6 +281,16 @@ void RobotTracker::update(const FrameObservations& frame) {
         return;
     }
 
+    // Reject stale or duplicate observations: predictTo() no-ops for
+    // dt <= 0, and applying an old measurement to the current state would
+    // silently corrupt it (camera clock reset, buffer reorder, reconnect
+    // replay).  Out-of-sequence data would need a fixed-lag smoother, not
+    // a direct update.
+    if (frame.stamp <= stamp_) {
+        diagnostic_event = "stale_frame";
+        return;
+    }
+
     match_dt_scale_ = std::clamp((frame.stamp - stamp_) / 0.04, 1.0, 3.0);
     predictTo(frame.stamp);
 
@@ -342,6 +352,7 @@ void RobotTracker::update(const FrameObservations& frame) {
     std::sort(pairs.begin(), pairs.end(), [](const Pair& a, const Pair& b) { return a.d2 < b.d2; });
     std::vector<bool> used_obs(frame.armors.size(), false), used_k(cfg_.armors_num, false);
     double nis_sum = 0;
+    double nis_yaw_sum = 0;
     for (const auto& p : pairs) {
         if (used_obs[p.obs] || used_k[p.k]) continue;
         if (p.d2 > 40.0) continue;  // gate
@@ -349,6 +360,7 @@ void RobotTracker::update(const FrameObservations& frame) {
         double nis_pos = 0;
         updateWith(frame.armors[p.obs], p.k, nis_pos);
         nis_sum += nis_pos;
+        nis_yaw_sum += last_nis_yaw;  // written by updateWith for this match
         ++matched_count;
         if (diagnostics_enabled_) {
             auto& d = association_diagnostics[p.obs];
@@ -364,8 +376,10 @@ void RobotTracker::update(const FrameObservations& frame) {
         nis_ema_ = (1 - a) * nis_ema_ + a * (nis_sum / matched_count);
         q_scale_ = std::clamp(nis_ema_ / 3.0, 1.0, std::max(1.0, cfg_.q_adapt_max));
         // A phase error shows up in the yaw innovation but not in the position
-        // one, so omega gets its own detector.
-        nis_yaw_ema_ = (1 - a) * nis_yaw_ema_ + a * last_nis_yaw;
+        // one, so omega gets its own detector.  Aggregate over ALL of this
+        // frame's matches (mean, like the position NIS above): using only
+        // the last match made the adaptation depend on observation order.
+        nis_yaw_ema_ = (1 - a) * nis_yaw_ema_ + a * (nis_yaw_sum / matched_count);
         q_yaw_scale_ = std::clamp(nis_yaw_ema_, 1.0, std::max(1.0, cfg_.q_adapt_max));
     }
 
@@ -447,6 +461,7 @@ void PointTracker::update(const FrameObservations& frame) {
         if (idx >= 0) init(frame.armors[idx], frame.stamp);
         return;
     }
+    if (frame.stamp <= stamp_) return;  // stale/duplicate: a negative dt would run the KF backwards
     const double dt = frame.stamp - stamp_;
     Mat F = Mat::eye();
     F(0, 1) = F(2, 3) = F(4, 5) = dt;
@@ -536,7 +551,7 @@ TargetState RobotTracker::targetState(double t) const {
     s.velocity = {x[VXC], x[VYC], x[VZC]};
     s.yaw = x[YAW];
     s.omega = x[W];
-    const Mat Pc = predictCovariance(t, false);
+    const Mat Pc = predictCovariance(t, true);  // full forecast covariance (see RobotAimer::aim)
     const int n = std::min(4, cfg_.armors_num);
     for (int k = 0; k < n; ++k) {
         s.armors[k].position = armorPosition(x, k);
@@ -708,6 +723,8 @@ void OutpostTracker::update(const FrameObservations& frame) {
         return;
     }
 
+    if (frame.stamp <= stamp_) return;  // stale/duplicate observation (see RobotTracker)
+
     // Widen the association gate when frames are far apart (dropped frames): the
     // gate is tuned for 40 ms, so a 120 ms gap needs ~3x the radius. Compute it
     // before predictTo(), which moves stamp_ to the frame time.
@@ -808,7 +825,7 @@ TargetState OutpostTracker::targetState(double t) const {
     s.velocity = {x[VXC], x[VYC], 0};
     s.yaw = x[YAW];
     s.omega = x[W];
-    const Mat Pc = predictCovariance(t, false);
+    const Mat Pc = predictCovariance(t, true);  // full forecast covariance (see RobotAimer::aim)
     for (int k = 0; k < 3; ++k) {
         s.armors[k].position = armorPosition(x, k);
         s.armors[k].yaw = armorYaw(x, k);

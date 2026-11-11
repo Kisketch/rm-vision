@@ -91,6 +91,11 @@ struct MvsConfig {
     // measurement is rotated by w * delay.  Measure it with DelayCalibrator
     // (delay_calibration.hpp: static plate, gimbal sweep) and put it here.
     double stamp_offset_us = 0.0;
+    // Fallback TimestampTickFrequency (Hz) used ONLY when the camera does
+    // not report one.  0 = no fallback: MvsSource refuses to start, because
+    // hardware stamps scaled by a guessed frequency drift without bound.
+    // Set this only to a value verified for the exact camera model.
+    double tick_freq_override = 0.0;
 };
 
 class MvsSource : public CameraSource {

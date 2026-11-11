@@ -169,7 +169,18 @@ bool PoseSolver::solve(const ArmorDetection& det, ArmorObservation& out, PoseDia
         const double yaw = std::atan2(R_wa(1, 0), R_wa(0, 0));
         const double pitch = std::asin(std::clamp(-R_wa(2, 0), -1.0, 1.0));
         const cv::Vec3d t_c(tvecs[i].at<double>(0), tvecs[i].at<double>(1), tvecs[i].at<double>(2));
-        const double err = errs.size() > static_cast<std::size_t>(i) ? errs[i] : 0.0;
+        double err = errs.size() > static_cast<std::size_t>(i) ? errs[i] : -1.0;
+        if (err < 0) {
+            // solvePnPGeneric did not report this candidate's error: recompute
+            // the RMS reprojection error instead of treating it as 0, which
+            // would silently drop the reprojection term from the selection
+            // cost and degrade the choice to the pitch prior alone.
+            std::vector<cv::Point2d> proj;
+            cv::projectPoints(obj, rvecs[i], tvecs[i], camera_.K(), camera_.dist(), proj);
+            double ss = 0;
+            for (std::size_t j = 0; j < proj.size(); ++j) ss += cv::norm(proj[j] - img[j]) * cv::norm(proj[j] - img[j]);
+            err = std::sqrt(ss / proj.size());
+        }
         bool physical = std::isfinite(yaw) && std::isfinite(pitch) && std::isfinite(err);
         for (const auto& p : obj) {
             const cv::Vec3d c = R_ca * cv::Vec3d(p.x, p.y, p.z) + t_c;
@@ -178,7 +189,9 @@ bool PoseSolver::solve(const ArmorDetection& det, ArmorObservation& out, PoseDia
         }
         if (!physical) continue;
         ++diag.physical_candidates;
-        // reprojection error dominates; pitch prior breaks the IPPE near-tie
+        // reprojection error dominates; pitch prior breaks the IPPE near-tie.
+        // The pitch term is a SOFT prior, not a physical feasibility gate -
+        // the hard gates are finiteness and all points in front of the camera.
         const double cost = err + 2.0 * std::abs(pitch - expected_pitch);
         if (cost < best_cost) {
             best_cost = cost, best = i, best_yaw = yaw;
