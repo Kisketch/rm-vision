@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="470" viewBox="0 0 920 470" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+<rect width="920" height="470" fill="white"/>
+<text x="24" y="30" font-size="17" font-weight="bold" fill="#111827">P2-10 NIS-adaptive q: change in hit rate (pp)</text>
+<text x="24" y="50" font-size="11.5" fill="#4b5563">Helps in simulation, hurts on every real-video cell -> rejected for shipping. Source: docs/nis_adapt_study.md</text>
+<line x1="470" y1="86" x2="470" y2="392" stroke="#111827" stroke-width="1.4"/>
+<text x="266.0" y="410" font-size="10.5" text-anchor="middle" fill="#4b5563">-6</text>
+<text x="368.0" y="410" font-size="10.5" text-anchor="middle" fill="#4b5563">-3</text>
+<text x="470.0" y="410" font-size="10.5" text-anchor="middle" fill="#4b5563">+0</text>
+<text x="572.0" y="410" font-size="10.5" text-anchor="middle" fill="#4b5563">+3</text>
+<text x="674.0" y="410" font-size="10.5" text-anchor="middle" fill="#4b5563">+6</text>
+<rect x="470" y="108" width="119" height="30" fill="#0d9488"/>
+<text x="456" y="128" font-size="12" text-anchor="end" fill="#111827">Simulation, pure strafe</text>
+<text x="599" y="128" font-size="12" text-anchor="start" fill="#111827">+3.5</text>
+<rect x="470" y="154" width="238" height="30" fill="#0d9488"/>
+<text x="456" y="174" font-size="12" text-anchor="end" fill="#111827">Simulation, spin + strafe</text>
+<text x="718" y="174" font-size="12" text-anchor="start" fill="#111827">+7.0</text>
+<rect x="402" y="200" width="68" height="30" fill="#dc2626"/>
+<text x="456" y="220" font-size="12" text-anchor="end" fill="#111827">Video N0, 3.avi</text>
+<text x="392" y="220" font-size="12" text-anchor="end" fill="#111827">-2.0</text>
+<rect x="317" y="246" width="153" height="30" fill="#dc2626"/>
+<text x="456" y="266" font-size="12" text-anchor="end" fill="#111827">Video N0, 4.avi</text>
+<text x="307" y="266" font-size="12" text-anchor="end" fill="#111827">-4.5</text>
+<rect x="450" y="292" width="20" height="30" fill="#dc2626"/>
+<text x="456" y="312" font-size="12" text-anchor="end" fill="#111827">Video live calibre, 3.avi</text>
+<text x="440" y="312" font-size="12" text-anchor="end" fill="#111827">-0.6</text>
+<rect x="392" y="338" width="78" height="30" fill="#dc2626"/>
+<text x="456" y="358" font-size="12" text-anchor="end" fill="#111827">Video live calibre, 4.avi</text>
+<text x="382" y="358" font-size="12" text-anchor="end" fill="#111827">-2.3</text>
+</svg>

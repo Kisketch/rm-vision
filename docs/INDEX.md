@@ -40,7 +40,8 @@
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `docs/` | 66 | 全部设计/审查/调参文档（见下方 docs 分类表） |
+| `docs/` | 67 | 全部设计/审查/调参文档（见下方 docs 分类表） |
+| `docs/charts/` | 6 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
 | `docs/detections/` | 9 | 检测效果样例图/视频（说明用） |
 | `reports/` | 3 | 仿真与真视频汇总报告（sim_report 由 UTF-16 转码为 UTF-8，文本不变） |
 | `reports/real_video_regression/` | 9 | 真视频回归分项报告（N0/N1/弹速/标定四组 × 两视频 + 总报告） |
@@ -70,6 +71,7 @@
 - **性能**：optimization、optimization_round2
 - **交付与盘点**：deployment_map（部署地图：上车代码位置、构建产物与配置清单、目录总表——新人先看这页）、
   changes_vs_legacy（相对老代码的改动总览：11 类改动逐项说明作用与证据，含已否决方案清单）、
+  performance_charts（数据图表页：六张 SVG 图表呈现命中率/压力/耗时/误差预算与两项否决研究，生成脚本 tools/make_charts.py）、
   design_archive.html（设计档案总览页，浏览器直接打开；数字以 BASELINE.md 为准）、
   monorepo_migration（合并决策与回归证据）、
   completeness_audit_2026-11（迁移时完整性审计）、VIDEO_TEST_2026-11-10（用户视频复测）、software_completion、
@@ -90,7 +92,7 @@
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `tools/` | 13 | 回归/调参/标定脚本（regression、tune_sim、auto_improve、calibrate_intrinsics、check_extrinsics 等，路径已按单仓布局更新） |
+| `tools/` | 14 | 回归/调参/标定脚本（regression、tune_sim、auto_improve、calibrate_intrinsics、check_extrinsics、make_charts 等，路径已按单仓布局更新） |
 | `tools/offline_eval/` | 4 | 离线回归台架源码 + 说明（非 CMake 目标，基线证据复现用） |
 | `data/eval_cache/` | 39 | 真视频评测原始数据：两视频的检测缓存（每视频一份去重后的权威副本）+ 全部跟踪 CSV/报告/日志，按视频分 3/、4/ 两组，分类说明见其 README |
 | `tools/tasks/` | 21 | 任务/数据处理脚本集 |
@@ -106,7 +108,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 321 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 329 个（`git ls-files`）；迁移审计的 269 个是历史快照。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。
