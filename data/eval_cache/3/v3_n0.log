@@ -1,0 +1,24 @@
+  detect 200 frames  detect 400 frames  detect 600 frames  detect 800 frames  detect 1000 frames  detect 1200 frames  detect 1400 frames  detect 1600 frames  detect 1800 frames  detect 2000 frames  detect 2200 frames
+detected 2209 frames, 6.7923 ms/frame -> v3_detections.txt
+
+| strategy | shots | verifiable | hits | hit rate | hits/s |
+|---|---|---|---|---|---|
+| direct (aim at current plate) | 1943 | 1856 | 659 | 35.5% | 7.5 |
+| point KF (predict plate centre) | 1743 | 1653 | 488 | 29.5% | 5.5 |
+| robot EKF (whole-robot model) | 1440 | 1388 | 937 | 67.5% | 10.6 |
+| oracle (cheats: aims at the future plate) | 2010 | 1990 | 1977 | 99.3% | 22.4 |
+
+| prediction | horizon | samples | mean px | median px | p90 px |
+|---|---|---|---|---|---|
+| no prediction | 0.12 s | 2235 | 36.8 | 27.4 | 88.2 |
+| point KF | 0.12 s | 2235 | 47.5 | 9.7 | 121.0 |
+| robot EKF | 0.12 s | 2235 | 6.3 | 5.0 | 13.5 |
+| no prediction | 0.20 s | 2236 | 43.1 | 44.1 | 77.1 |
+| point KF | 0.20 s | 2236 | 80.3 | 29.7 | 130.5 |
+| robot EKF | 0.20 s | 2236 | 11.5 | 8.6 | 24.4 |
+| no prediction | 0.32 s | 2223 | 41.8 | 39.0 | 79.6 |
+| point KF | 0.32 s | 2223 | 459.7 | 66.4 | 154.1 |
+| robot EKF | 0.32 s | 2223 | 18.5 | 14.3 | 40.8 |
+
+tracking ratio 0.933, frames with armor 0.965, median |w| 2.690 rad/s, r1 0.216 m, r2 0.232 m, dz -0.050 m
+timing: pose 0.074 ms/frame, trackers+aimers+judge 0.749 ms/frame, detector 6.792299 ms/frame

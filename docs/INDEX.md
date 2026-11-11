@@ -80,21 +80,24 @@
 |---|---|---|
 | `tools/` | 13 | 回归/调参/标定脚本（regression、tune_sim、auto_improve、calibrate_intrinsics、check_extrinsics 等，路径已按单仓布局更新） |
 | `tools/offline_eval/` | 4 | 离线回归台架源码 + 说明（非 CMake 目标，基线证据复现用） |
+| `data/eval_cache/` | 39 | 真视频评测原始数据：两视频的检测缓存（每视频一份去重后的权威副本）+ 全部跟踪 CSV/报告/日志，按视频分 3/、4/ 两组，分类说明见其 README |
 | `tools/tasks/` | 21 | 任务/数据处理脚本集 |
 | `.claude/` | 7 | Claude Code 配置：settings + rm-reviewer 代理 + 5 个技能（hardening-review / regression / calibration-writeback / serial-check / monorepo） |
 
 ## 不在本仓内的材料（明确排除，非遗失）
 
 - 作业仓 `rm-armor-detection` 的任何文件——按用户要求不触碰、不复制。
-- 视频数据——在本仓 Release `data-v1-2026-11-09` 的附件中（3.avi 整文件；4.avi 分两片，拼接后按 Release 说明的 SHA-256 校验）；不进 git 历史（单文件超 GitHub 100 MB 上限）。检测缓存在 `tools/offline_eval/`。
+- 视频数据——在本仓 Release `data-v1-2026-11-09` 的附件中（3.avi 整文件；4.avi 分两片，拼接后按 Release 说明的 SHA-256 校验）；不进 git 历史（单文件超 GitHub 100 MB 上限）。检测缓存与评测原始输出已入仓，见 `data/eval_cache/`。
 - 各轮交付的代码快照目录——代码已合入本仓，理由与清单见 `archive/README.md`。
 - Claude Code 配置包的 zip/install.sh/全局配置——分发工具，内容已入仓
   （CLAUDE.md + .claude/），包本体留在交付渠道。
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 273 个（`git ls-files`）；迁移审计的 269 个是历史快照，
-本轮新增离线参考配置与三份审查/视频/诊断报告，共 4 个文件。
+当前跟踪文件 313 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
+CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
+（39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。
 没有删除或移动历史文件，`legacy/`、`archive/`、模型和冻结基线保持原样。
 共用实现仍仅在 `core/`，哨兵模块继续链接它；默认全模块和
 `BUILD_SENTRY=OFF` 两种构建入口都纳入本轮验证。

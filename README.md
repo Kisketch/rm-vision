@@ -167,8 +167,9 @@ tracked in `BASELINE.md` and gated separately by `tools/regression.py`.
 indoor dark-field, red #3 infantry target) are published as assets of
 this repository's own
 [`data-v1-2026-11-09` release](https://github.com/Kisketch/rm-vision/releases/tag/data-v1-2026-11-09),
-which carries their SHA-256 sums; the detection caches are in
-`tools/offline_eval/`. Download the assets into `video/` (4.avi ships as
+which carries their SHA-256 sums; the detection caches, tracker outputs
+and raw reports are in `data/eval_cache/`. Download the assets into
+`video/` (4.avi ships as
 two parts — concatenate them as the release notes describe), then:
 
 ```bash
