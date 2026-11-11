@@ -46,3 +46,40 @@ jobs:
 
       - name: Smoke - simulation, sentry config
         run: ./build/apps/autoaim_sim --config sentry/config/sentry.yaml --seconds 5
+
+  sanitize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install OpenCV
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-opencv python3-numpy \
+            libopencv-dev \
+            libopencv-core-dev \
+            libopencv-imgproc-dev \
+            libopencv-imgcodecs-dev \
+            libopencv-videoio-dev \
+            libopencv-highgui-dev \
+            libopencv-calib3d-dev \
+            libopencv-features2d-dev \
+            libopencv-flann-dev \
+            libopencv-dnn-dev
+
+      - name: Configure (ASan + UBSan)
+        run: >
+          cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
+          -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined"
+
+      - name: Build
+        run: cmake --build build-asan -j"$(nproc)"
+
+      - name: Test under sanitizers (core + sentry + serial)
+        run: ctest --test-dir build-asan --output-on-failure
