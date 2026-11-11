@@ -34,7 +34,7 @@
 | `sentry/config/` | 2 | `sentry.yaml`（哨兵参数）、`default.yaml`（哨兵风味默认） |
 | `sentry/tools/`（含 `legacy_include/`） | 6 | 旧代码对比台架（与 legacy/ 对照用，非产品构建） |
 | `apps/` | 5 | 步兵侧程序：`autoaim_video`（离线评测）、`autoaim_sim`（仿真）、`autoaim_lights`、`detector_bench` + CMake |
-| `tests/` | 6 | 三套 CTest：core/哨兵/串口，另有缓存集成、视频对齐测试与 CMake |
+| `tests/` | 7 | 三套 CTest：core/哨兵/串口，另有缓存集成、视频对齐测试、回归门契约测试（test_regression_gate.py）与 CMake |
 
 ## 文档与报告
 
@@ -108,7 +108,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 329 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 330 个（`git ls-files`）；迁移审计的 269 个是历史快照。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。
