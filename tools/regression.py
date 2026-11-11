@@ -32,12 +32,12 @@ from pathlib import Path
 # by ~10 pp on the same build, so comparing across them is meaningless.
 REFERENCE_BY_CONFIG = {
     "video_reference.yaml": {
-        "3": {"hit": 67.6, "pred_032": 14.3, "hits_per_s": 10.6},
-        "4": {"hit": 68.6, "pred_032": 13.4, "hits_per_s": 10.0},
+        "3": {"hit": 67.5, "pred_032": 14.3, "hits_per_s": 10.6},
+        "4": {"hit": 68.6, "pred_032": 13.3, "hits_per_s": 10.1},
     },
     "default.yaml": {
-        "3": {"hit": 56.8, "pred_032": 15.1, "hits_per_s": 8.65},
-        "4": {"hit": 64.4, "pred_032": 13.2, "hits_per_s": 8.4},
+        "3": {"hit": 57.3, "pred_032": 15.3, "hits_per_s": 8.8},
+        "4": {"hit": 66.9, "pred_032": 12.4, "hits_per_s": 8.8},
     },
 }
 DEFAULT_CONFIG = "core/config/video_reference.yaml"

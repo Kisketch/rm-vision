@@ -276,7 +276,6 @@ EvalResult evaluate(const Config& cfg, const std::vector<FrameObservations>& obs
                     bool keep_log, const JudgeFn* custom_judge) {
     EvalResult res;
     const double fps = cfg.eval.fps;
-    const double dt = 1.0 / fps;
     Ballistics ball(cfg.ballistic);
     RobotTracker robot(cfg.tracker, camera);
     PointTracker point(cfg.tracker, camera);
