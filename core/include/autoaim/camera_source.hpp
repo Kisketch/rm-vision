@@ -59,7 +59,9 @@ private:
 // (hw_stamp stays false).
 class DeviceSource : public CameraSource {
 public:
-    explicit DeviceSource(int index, double nominal_fps = 0.0);
+    // width/height > 0 are requested from the device after opening
+    // (0 = leave the device default).
+    explicit DeviceSource(int index, double nominal_fps = 0.0, int width = 0, int height = 0);
     ~DeviceSource() override;
     bool grab(SourceFrame& out) override;
     double fps() const override { return fps_; }

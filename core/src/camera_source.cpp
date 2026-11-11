@@ -49,12 +49,14 @@ bool VideoFileSource::grab(SourceFrame& out) {
 
 // ------------------------------------------------------------------- Device
 
-DeviceSource::DeviceSource(int index, double nominal_fps) {
+DeviceSource::DeviceSource(int index, double nominal_fps, int width, int height) {
     auto* cap = new cv::VideoCapture(index, cv::CAP_V4L2);
     if (!cap->isOpened()) {
         delete cap;
         throw std::runtime_error("cannot open camera device");
     }
+    if (width > 0) cap->set(cv::CAP_PROP_FRAME_WIDTH, width);
+    if (height > 0) cap->set(cv::CAP_PROP_FRAME_HEIGHT, height);
     cap_ = cap;
     fps_ = nominal_fps > 0 ? nominal_fps : cap->get(cv::CAP_PROP_FPS);
     if (!(fps_ > 0) || fps_ > 1000) fps_ = 30.0;

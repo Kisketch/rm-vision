@@ -34,10 +34,10 @@ ctest --test-dir build --output-on-failure
 
 产物：
 
-- `build/sentry_offline`：视频回放 + CSV + overlay，不依赖相机/串口；
-- `build/sentry_robot`：相机/视频 + 串口；
-- `build/autoaim_video`：原评测（虚拟打靶）；
-- `build/sentry_tests`、`build/autoaim_tests`。
+- `build/sentry/sentry_offline`：视频回放 + CSV + overlay，不依赖相机/串口；
+- `build/sentry/sentry_robot`：相机/视频/MVS + 串口；
+- `build/apps/autoaim_video`：原评测（虚拟打靶）；
+- `build/tests/` 下的测试二进制（ctest 统一运行）。
 
 ## 3. 标定（上车前必须做）
 
@@ -101,31 +101,24 @@ PY
 ### 4.2 实车（视频/相机 + 串口）
 
 ```bash
-# 用相机（V4L2；MVS 相机需先接 hikrobot 适配）
-./build/sentry_robot --camera 0 --serial /dev/ttyACM0 \
-  --config config/sentry.yaml --comp-yaw 0 --comp-pitch 0
+# 用相机（V4L2/UVC）
+./build/sentry/sentry_robot --camera 0 --serial /dev/ttyACM0 \
+  --config sentry/config/sentry.yaml --comp-yaw 0 --comp-pitch 0
+
+# 用海康 MVS 工业相机（需以 -DAUTOAIM_WITH_MVS=ON -DMVS_ROOT=<SDK> 构建）
+./build/sentry/sentry_robot --mvs --serial /dev/ttyACM0 \
+  --config sentry/config/sentry.yaml --comp-yaw 0 --comp-pitch 0
 
 # 用录好的视频回放，不带串口
-./build/sentry_robot --video ~/video/3.avi --serial "" --config config/sentry.yaml
+./build/sentry/sentry_robot --video ~/video/3.avi --serial "" --config sentry/config/sentry.yaml
 ```
 
-MVS 适配骨架（保留旧 `io/hikrobot.*`，只替换取帧循环）：
-
-```cpp
-#include "hikrobot.hpp"   // 旧仓 io/include，需要 MVS SDK
-
-io::HikRobot camera(exposure_us, gain, "2bdf:0001");
-time_point t;
-cv::Mat frame;
-while (running) {
-    camera.Query(frame, t);                 // 旧驱动：图像 + 时间戳
-    const double stamp = toSeconds(t);      // steady_clock -> double
-    auto out = vision.process(frame, stamp, yaw, pitch, roll);
-    // ... 串口发送 / 可视化
-}
-```
-
-如果 MVS SDK 能给“曝光中点”时间，优先用它；否则用 `t - exposure/2` 修正。
+MVS 相机已内置：`sentry_robot --mvs` 走 core 的 `MvsSource`
+（`autoaim/camera_source.hpp`），设备时间戳经 ClockAligner 对齐到主机
+时钟并移到曝光中心，`--exposure-offset-ms` 折进 `stamp_offset_us`。
+构建需 `-DAUTOAIM_WITH_MVS=ON -DMVS_ROOT=<SDK 目录>`；该路径目前只做过
+桩编译验证，上车前先核对目标机的 SDK 版本/ABI。旧 `io/hikrobot.*`
+驱动保留在 `legacy/` 中，仅作参考，不再需要移植。
 
 - `--comp-yaw/--comp-pitch` 是旧仓 `Transmit.compensate_*` 的等价物；先 0，实测偏置后再加。
 - 程序内 `HoldFound 0.5 s`：目标短暂丢失时保持上一帧角度，但**不发火**。
@@ -145,9 +138,9 @@ After=network.target
 [Service]
 Type=simple
 User=lgnatius
-WorkingDirectory=/home/lgnatius/sentry_vision
-ExecStart=/home/lgnatius/sentry_vision/build/sentry_robot \
-  --camera 0 --serial /dev/ttyACM0 --config config/sentry.yaml
+WorkingDirectory=/home/lgnatius/rm-vision
+ExecStart=/home/lgnatius/rm-vision/build/sentry/sentry_robot \
+  --camera 0 --serial /dev/ttyACM0 --config sentry/config/sentry.yaml
 Restart=always
 RestartSec=2
 Environment=DISPLAY=:0

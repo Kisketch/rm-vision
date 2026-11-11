@@ -1,18 +1,27 @@
-// Robot-side loop: camera (OpenCV index or file) + optional old serial protocol
-// -> integrated sentry vision -> 21-byte control frame.  This is intentionally
-// transport-thin; swap cv::VideoCapture for the HikRobot source on the IT13.
+// Robot-side loop: camera source + optional old serial protocol ->
+// integrated sentry vision -> 21-byte control frame.  All capture goes
+// through autoaim::CameraSource (core), the same interface the infantry
+// apps use - there is no sentry-private capture path:
 //
-// Attitude timing (G-02): each frame is stamped with its estimated exposure
-// time - frame receipt time minus --exposure-offset-ms for a live camera
-// (readout + transfer lag; the MVS source in rm-autoaim aligns the device
-// clock by median receipt delay, so it needs the same calibrated offset) -
-// and the gimbal
-// attitude is SLERP-interpolated at that stamp by io::SerialPort.  When no
-// attitude brackets the stamp the frame is skipped (never processed with a
+//   --mvs     HikRobot MVS source (needs -DAUTOAIM_WITH_MVS=ON): hardware
+//             device timestamps, ClockAligner-aligned, exposure-centre
+//             stamps (hw_stamp = true). --exposure-offset-ms is folded
+//             into MvsConfig::stamp_offset_us.
+//   --camera  V4L2/UVC device (DeviceSource): stamp = receipt minus half
+//             the frame period, minus --exposure-offset-ms.
+//   --video   file replay (VideoFileSource): stamps are MEDIA time
+//             (frame index / fps), deterministic and independent of how
+//             fast the host processes.  A live serial attitude stream
+//             runs on the host clock, so for serial bench work and for
+//             --calib-delay use a live source, not a file.
+//
+// Attitude timing (G-02): the gimbal attitude is SLERP-interpolated at
+// the frame's exposure stamp by io::SerialPort.  When no attitude
+// brackets the stamp the frame is skipped (never processed with a
 // stale or zero attitude) and counted in the summary line.
 //
-//   ./build/sentry_robot --camera 0 --serial /dev/ttyACM0 --config config/sentry.yaml
-//   ./build/sentry_robot --video ../video/3.avi --serial "" --render
+//   ./build/sentry/sentry_robot --camera 0 --serial /dev/ttyACM0 --config sentry/config/sentry.yaml
+//   ./build/sentry/sentry_robot --video video/3.avi --serial "" --render
 //
 // --max-extrap-ms (default 10): a frame stamped at receipt is usually newer
 // than the last attitude sample that has arrived; up to this much the
@@ -34,6 +43,7 @@
 #include <iostream>
 #include <string>
 
+#include "autoaim/camera_source.hpp"
 #include "autoaim/config.hpp"
 #include "autoaim/delay_calibration.hpp"
 #include "autoaim/pose_buffer.hpp"
@@ -55,6 +65,7 @@ int main(int argc, char** argv) {
     std::string video;
     std::string serial_device;
     int camera_index = -1;
+    bool use_mvs = false;
     bool render = false;
     int max_frames = -1;
     double comp_yaw = 0, comp_pitch = 0;
@@ -69,7 +80,7 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--help" || a == "-h") {
-            std::cout << "usage: sentry_robot (--camera INDEX | --video FILE) [options]\n"
+            std::cout << "usage: sentry_robot (--camera INDEX | --video FILE | --mvs) [options]\n"
                          "  --config FILE --serial DEVICE --render --roi --max-frames N\n"
                          "  --calib-delay (never fires) --exposure-offset-ms MS\n"
                          "  --stamp-delay-ms MS --max-gap-ms MS --max-extrap-ms MS --require-crc\n"
@@ -79,6 +90,7 @@ int main(int argc, char** argv) {
         else if (a == "--config" && i + 1 < argc) config_path = argv[++i];
         else if (a == "--video" && i + 1 < argc) video = argv[++i];
         else if (a == "--camera" && i + 1 < argc) camera_index = std::stoi(argv[++i]);
+        else if (a == "--mvs") use_mvs = true;
         else if (a == "--serial" && i + 1 < argc) serial_device = argv[++i];
         else if (a == "--render") render = true;
         else if (a == "--max-frames" && i + 1 < argc) max_frames = std::stoi(argv[++i]);
@@ -107,16 +119,31 @@ int main(int argc, char** argv) {
     sentry::SentryVision vision(cfg);
     if (roi) vision.setRoiEnabled(true);
 
-    cv::VideoCapture cap;
-    if (!video.empty()) cap.open(video);
-    else if (camera_index >= 0) cap.open(camera_index, cv::CAP_V4L2);
-    if (!cap.isOpened()) {
-        std::cerr << "cannot open " << (video.empty() ? "camera" : video) << "\n";
+    std::unique_ptr<autoaim::CameraSource> source;
+    try {
+        if (use_mvs) {
+#ifdef AUTOAIM_WITH_MVS
+            autoaim::MvsConfig mc;
+            mc.stamp_offset_us = exposure_offset_ms * 1000.0;
+            source = std::make_unique<autoaim::MvsSource>(mc);
+#else
+            std::cerr << "--mvs needs a build with -DAUTOAIM_WITH_MVS=ON\n";
+            return 1;
+#endif
+        } else if (!video.empty()) {
+            source = std::make_unique<autoaim::VideoFileSource>(video);
+        } else if (camera_index >= 0) {
+            source = std::make_unique<autoaim::DeviceSource>(camera_index, cfg.eval.fps,
+                                                             cfg.camera.width, cfg.camera.height);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "cannot open source: " << e.what() << "\n";
         return 1;
     }
-    if (cfg.camera.width > 0) cap.set(cv::CAP_PROP_FRAME_WIDTH, cfg.camera.width);
-    if (cfg.camera.height > 0) cap.set(cv::CAP_PROP_FRAME_HEIGHT, cfg.camera.height);
-    cap.set(cv::CAP_PROP_FPS, cfg.eval.fps);
+    if (!source) {
+        std::cerr << "one of --camera, --video or --mvs is required\n";
+        return 1;
+    }
 
     std::unique_ptr<io::SerialPort> serial;
     if (!serial_device.empty())
@@ -145,13 +172,17 @@ int main(int argc, char** argv) {
     int processed = 0;
     std::uint64_t attitude_misses = 0;
     cv::Mat frame;
-    while (cap.read(frame)) {
+    autoaim::SourceFrame sf;
+    while (source->grab(sf)) {
         if (max_frames > 0 && processed >= max_frames) break;
-        // Exposure-time estimate: receipt time, minus the measured lag for a
-        // live camera.  Video files keep receipt-time stamps (offline mode
-        // has no serial attitude to align with anyway).
-        const double t_recv = nowSeconds();
-        const double stamp = video.empty() ? t_recv - exposure_offset_ms / 1000.0 : t_recv;
+        frame = sf.image;
+        // Exposure stamp from the source.  The MVS offset is already
+        // folded into the source; the UVC device stamp still takes the
+        // app-level --exposure-offset-ms correction on top of its
+        // half-period estimate.  Video files use media time as-is.
+        const double stamp = use_mvs ? sf.exposure_stamp
+                                     : (video.empty() ? sf.exposure_stamp - exposure_offset_ms / 1000.0
+                                                      : sf.exposure_stamp);
 
         sentry::AttitudeFrame attitude;
         bool have_attitude = false;

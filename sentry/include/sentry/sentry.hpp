@@ -45,8 +45,13 @@ public:
     // Tracking-guided windowed detection (docs/roi_detection.md): search
     // only around every active track's predicted plate positions (all
     // plate slots, projected at the current frame's attitude, 60 px
-    // margin), with a full scan every 30 frames and an immediate
-    // full-frame retry when a windowed frame finds nothing. Off by default.
+    // margin). Full scans happen on a 30-frame period and immediately
+    // when (a) there are no windows (nothing tracked), (b) a windowed
+    // frame finds nothing, or (c) the active-track count just dropped
+    // (scene changed; a new target may be entering). The residual blind
+    // spot is a new target entering while another is tracked: bounded by
+    // the 30-frame period (1.2 s at the 25 fps reference rate, ~0.18 s
+    // at a 165 fps camera). Off by default.
     void setRoiEnabled(bool on) { roi_enabled_ = on; }
     // Windows used for the last frame (after merging), for overlays/tests.
     const std::vector<cv::Rect>& roiWindows() const { return roi_windows_; }
@@ -67,6 +72,7 @@ private:
     bool roi_enabled_ = false;
     std::vector<cv::Rect> roi_windows_;
     int frames_since_full_ = 0;
+    int prev_active_tracks_ = -1;  // for the scene-change full-scan trigger
     long frame_count_ = 0;  // sequential frame index for observations.frame
 };
 

@@ -81,6 +81,16 @@ SentryOutput SentryVision::process(const cv::Mat& bgr, double stamp, double gimb
 
     manager_.update(out.observations);
     out.targets = manager_.snapshots(stamp);
+    if (roi_enabled_) {
+        // Scene-change trigger: a track was just dropped (target left,
+        // occluder passed). Whatever enters next should not wait for the
+        // periodic full scan, so force one on the next frame.
+        int active = 0;
+        for (const auto& s : out.targets)
+            if (s.valid && s.active()) ++active;
+        if (prev_active_tracks_ >= 0 && active < prev_active_tracks_) frames_since_full_ = 30;
+        prev_active_tracks_ = active;
+    }
     out.selected = manager_.select(out.targets);
     if (out.selected >= 0) out.command = aimer_.aim(out.targets[out.selected], stamp);
     return out;
