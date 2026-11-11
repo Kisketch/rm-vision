@@ -40,7 +40,7 @@
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `docs/` | 67 | 全部设计/审查/调参文档（见下方 docs 分类表） |
+| `docs/` | 68 | 全部设计/审查/调参文档（见下方 docs 分类表） |
 | `docs/charts/` | 6 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
 | `docs/detections/` | 9 | 检测效果样例图/视频（说明用） |
 | `reports/` | 3 | 仿真与真视频汇总报告（sim_report 由 UTF-16 转码为 UTF-8，文本不变） |
@@ -72,6 +72,7 @@
 - **交付与盘点**：deployment_map（部署地图：上车代码位置、构建产物与配置清单、目录总表——新人先看这页）、
   changes_vs_legacy（相对老代码的改动总览：11 类改动逐项说明作用与证据，含已否决方案清单）、
   performance_charts（数据图表页：六张 SVG 图表呈现命中率/压力/耗时/误差预算与两项否决研究，生成脚本 tools/make_charts.py）、
+  camera_hardware（相机硬件与采集参数：队伍实机主相机/全向感知相机配置表，已与 perservance 代码逐项对照，含本仓默认值修正与 USB 带宽提醒）、
   design_archive.html（设计档案总览页，浏览器直接打开；数字以 BASELINE.md 为准）、
   monorepo_migration（合并决策与回归证据）、
   completeness_audit_2026-11（迁移时完整性审计）、VIDEO_TEST_2026-11-10（用户视频复测）、software_completion、
@@ -108,7 +109,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 330 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 331 个（`git ls-files`）；迁移审计的 269 个是历史快照。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。

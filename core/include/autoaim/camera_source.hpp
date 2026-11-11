@@ -81,7 +81,7 @@ private:
 //   cmake -DAUTOAIM_WITH_MVS=ON -DMVS_ROOT=<sdk dir> ...
 struct MvsConfig {
     int device_index = 0;
-    double exposure_us = 1500.0;
+    double exposure_us = 2500.0;  // team camera config: 2500 us for auto-aim/outpost (2000 us for buff), manual exposure
     double frame_rate = 165.0;  // matches the reality params used by SMBU pb2025
     bool hardware_trigger = false;  // true: external trigger starts exposure
     // Subtracted from every stamp.  The ClockAligner offset is the MEDIAN

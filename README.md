@@ -503,7 +503,7 @@ binary here by design — the algorithm ships as the `autoaim_core` library
 (`apps/` holds offline evaluation and simulation tools only), and
 `legacy/` is the previous on-robot program kept as a read-only archive,
 not a build input. A one-page deployment map (in Chinese, for the team)
-includes the [camera inventory and capture settings](docs/deployment_map.md#相机配置核对).
+is [docs/deployment_map.md](docs/deployment_map.md).
 
 ## Repository layout
 
@@ -630,6 +630,9 @@ over-speed lockout) is a referee constraint, not a tuning target.
 ## Documentation
 
 - [`docs/INDEX.md`](docs/INDEX.md) — annotated index of the whole tree.
+- [`docs/camera_hardware.md`](docs/camera_hardware.md) — the team's
+  actual cameras (Hikrobot MVS main camera, twin 720p omni cameras):
+  frame rates, exposures, pixel formats, and the USB bandwidth caveat.
 - [`docs/pipeline_and_tuning.md`](docs/pipeline_and_tuning.md) — the
   full tuning log with every sweep table, the simulator-in-the-loop
   tuning study, and the detector visualisations.
