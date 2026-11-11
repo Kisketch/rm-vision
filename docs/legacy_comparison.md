@@ -1,5 +1,7 @@
 > **出处（rm-vision 归档说明）：** 本报告原为最终算法交付包的 `COMPARISON.md`，对比旧代码 `auto-aim-master` 与合并前的新算法（rm-autoaim @ `0c9874e` / rm-sentry-integration @ `b96f5c1`）；两仓现已合并为本仓，报告结论与补齐清单仍适用。
 
+当前相机采集实现、旧系统配置和待实测项目见[相机配置核对](deployment_map.md#相机配置核对)。
+
 # 新旧代码对比报告（auto-aim-master ↔ 最终算法）
 
 对比对象：旧代码 `auto-aim-master`（用户 2026-11-10 提供，即压缩包原件）与本包交付的新算法（`rm-autoaim` @ `0c9874e`、`rm-sentry-integration` @ `b96f5c1`）。

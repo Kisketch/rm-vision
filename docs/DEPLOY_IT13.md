@@ -1,5 +1,7 @@
 # IT13 哨兵部署清单（Ubuntu 22.04）
 
+当前相机采集实现、旧系统配置和待实测项目见[相机配置核对](deployment_map.md#相机配置核对)。
+
 > 目标机：GEEKOM Mini IT13，i9-13900HK（6P+8E，20 线程），Iris Xe 96EU，32 GB DDR4，
 > 1 TB PCIe 4.0 NVMe，2.5G 网口，19 V DC。相机：海康 MVS 工业相机（旧仓 `io/hikrobot.*`）。
 
