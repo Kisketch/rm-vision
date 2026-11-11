@@ -569,6 +569,32 @@ static void testClockAligner() {
     std::printf("clock aligner: offset error %.2e s\n", std::abs(al.offset() - true_offset));
 }
 
+static void testClockAlignerDrift() {
+    // Sustained-run behaviour (review request): the remote clock runs
+    // 200 ppm fast for 60 simulated seconds at 165 Hz.  The aligner does
+    // not estimate skew explicitly; its 64-pair sliding median must still
+    // track the drifting offset.  A frozen offset would be 12 ms wrong
+    // after 60 s; the tracked error must stay two orders below that.
+    ClockAligner al(64);
+    std::mt19937 rng(7);
+    std::normal_distribution<double> jitter(0, 0.0005);
+    const double skew = 200e-6;   // remote seconds per local second, beyond 1
+    const double base = 0.012;    // initial offset, s
+    double worst = 0.0;
+    const int total = 60 * 165;
+    for (int n = 0; n < total; ++n) {
+        const double local = n / 165.0;
+        const double remote = local * (1.0 + skew);
+        al.addPair(remote, local + base + jitter(rng));
+        if (n > 128) {  // steady state: check every converted stamp
+            const double err = std::abs(al.toLocal(remote) - (local + base));
+            worst = std::max(worst, err);
+        }
+    }
+    CHECK(worst < 0.0005, "drift tracking worst error %.2e s over 60 s at 200 ppm", worst);
+    std::printf("clock aligner drift: worst steady-state error %.2e s (200 ppm, 60 s)\n", worst);
+}
+
 static void testDeviceId() {
     ArmorDetection d;
     d.number = "3";
@@ -976,6 +1002,7 @@ int main() {
     testKeypointDetector();
     testPoseBuffer();
     testClockAligner();
+    testClockAlignerDrift();
     testPoseBufferExtrapolation();
     testPoseBufferNonFinite();
     testDelayCalibration();

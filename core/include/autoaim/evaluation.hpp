@@ -74,7 +74,9 @@ struct StrategyResult {
     int shots = 0;       // frames on which the strategy fired
     int verifiable = 0;  // shots whose impact frame contains a detected plate
     int hits = 0;
-    double hit_rate() const { return verifiable ? double(hits) / verifiable : 0.0; }
+    double hit_rate() const { return verifiable ? double(hits) / verifiable : 0.0; }  // conditional: hits / verifiable
+    double verifiability() const { return shots ? double(verifiable) / shots : 0.0; }  // share of shots that could be judged at all
+    double conservative_hit_rate() const { return shots ? double(hits) / shots : 0.0; }  // unverifiable shots counted as misses
     double hits_per_second(double fps) const { return frames ? hits * fps / frames : 0.0; }
     std::vector<ShotRecord> shots_log;
 };

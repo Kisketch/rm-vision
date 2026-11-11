@@ -479,9 +479,11 @@ EvalResult evaluate(const Config& cfg, const std::vector<FrameObservations>& obs
 std::string formatReport(const EvalResult& r, double fps) {
     std::ostringstream o;
     o << std::fixed << std::setprecision(1);
-    o << "| strategy | shots | verifiable | hits | hit rate | hits/s |\n|---|---|---|---|---|---|\n";
+    o << "| strategy | shots | verifiable | hits | verifiable % | conservative % | hit rate | hits/s |\n"
+         "|---|---|---|---|---|---|---|---|\n";
     for (const auto& s : r.strategies)
         o << "| " << s.name << " | " << s.shots << " | " << s.verifiable << " | " << s.hits << " | "
+          << 100.0 * s.verifiability() << "% | " << 100.0 * s.conservative_hit_rate() << "% | "
           << 100.0 * s.hit_rate() << "% | " << s.hits_per_second(fps) << " |\n";
     o << "\n| prediction | horizon | samples | mean px | median px | p90 px |\n|---|---|---|---|---|---|\n";
     for (const auto& p : r.predictions)

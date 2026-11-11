@@ -307,6 +307,23 @@ in the live calibre needs footage from the team's own camera (the "N1
 baseline", pending). `tools/regression.py` gates both calibres with
 one-sided, drop-only tolerances.
 
+The same runs under all three reporting conventions (see Evaluation
+method for definitions; robot EKF):
+
+| Config | Video | shots | verifiable | verifiability | conservative | conditional |
+|---|---|---:|---:|---:|---:|---:|
+| reference | 3.avi | 1440 | 1388 | 96.4% | 65.1% | 67.5% |
+| reference | 4.avi | 2049 | 2004 | 97.8% | 67.1% | 68.6% |
+| live | 3.avi | 1406 | 1356 | 96.4% | 55.3% | 57.3% |
+| live | 4.avi | 1848 | 1804 | 97.6% | 65.3% | 66.9% |
+
+On this footage the detector is present at impact time for ~97% of
+shots, so the conditional headline overstates the conservative figure
+by only 1.5–2.4 pp. That is a property of *this* footage (one visible
+target, few full occlusions), not a guarantee: on occlusion-heavy
+footage the gap is exactly the bias the three-metric report exists to
+expose.
+
 ### Simulator (ground truth)
 
 `autoaim_sim`: 0.7 px corner noise, 5% detection drop-out, 25 fps,
@@ -430,7 +447,15 @@ drag, and is judged against *future* frames: plates are interpolated to
 the exact impact time, and the shot is a hit if the impact point
 projects inside the plate's panel outline at that instant. Shots whose
 impact time has no detected plate count as unverifiable and leave the
-denominator. The evaluator is rate-agnostic (dt from frame-stamp
+denominator of the headline rate — a selection effect that can flatter
+the system exactly when detection is fragile (hard shots are the ones
+most likely to be unverifiable). Every report therefore publishes all
+three conventions: the **conditional** hit rate (hits / verifiable —
+the historical headline, kept for comparability), the **verifiability
+rate** (verifiable / shots), and the **conservative** hit rate
+(hits / shots, unverifiable counted as misses). The frozen values of
+all three are tabulated with the baselines above. The evaluator is
+rate-agnostic (dt from frame-stamp
 deltas; gapless 25 fps input is bit-identical to the historical
 evaluator, guarded by a regression test), so dropped frames and
 variable-rate cameras are measured honestly.
