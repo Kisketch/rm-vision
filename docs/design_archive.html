@@ -595,12 +595,13 @@ footer{color:var(--muted);font-size:12px;margin-top:32px;border-top:1px solid va
 <p style="color:var(--muted);font-size:13px;margin:0 0 10px">冻结基线与当前主分支必须有据可查的对应关系，否则本页会逐渐变成与代码脱节的历史档案（第四轮审查要求）。</p>
 <div class="table-wrap"><table><thead><tr><th>项</th><th>记录</th></tr></thead><tbody>
 <tr><td data-l="项"><b>基线 commit</b></td><td data-l="记录" class="mono">f5337a8</td></tr>
-<tr><td data-l="项"><b>当前 HEAD</b></td><td data-l="记录" class="mono">9acbee9（在基线 f5337a8 之后 1 个提交）</td></tr>
-<tr><td data-l="项"><b>提交范围（基线 → HEAD）</b></td><td data-l="记录">无</td></tr>
-<tr><td data-l="项"><b>回归测试结果</b></td><td data-l="记录">冻结数字逐项复现（修复后基线 bit 级不变，ctest 3/3）</td></tr>
+<tr><td data-l="项"><b>当前 HEAD</b></td><td data-l="记录" class="mono">e52a8e4（在基线 f5337a8 之后 4 个提交，含 1 个合并）</td></tr>
+<tr><td data-l="项"><b>提交范围（基线 → HEAD）</b></td><td data-l="记录">docs-only：<span class="mono">9acbee9</span> 标定档案模板 + 试机清单；<span class="mono">87b66ca</span> / <span class="mono">d80aeb6</span>（经 PR #2 合并为 <span class="mono">e52a8e4</span>）本设计档案页 + INDEX 登记。代码文件零改动</td></tr>
+<tr><td data-l="项"><b>回归测试结果</b></td><td data-l="记录">代码自 <span class="mono">f5337a8</span> 起未改动，沿用其结果：冻结数字逐项复现（bit 级不变，ctest 3/3）；之后的 docs-only 提交未重跑</td></tr>
 <tr><td data-l="项"><b>性能数字变化</b></td><td data-l="记录">无</td></tr>
 </tbody></table></div>
 <p style="color:var(--muted);font-size:12px;margin:8px 0 0">变更记录 — 当前 HEAD：<span class="mono">9acbee9</span>（在基线 <span class="mono">f5337a8</span> 之后 1 个提交）；提交范围：docs-only（新增 <span class="mono">docs/calibration_record_template.md</span> 标定档案模板、INDEX 登记、试机清单补两项：标定档案补全与时间误差 e<sub>t</sub> 分布）；回归结果：纯文档变更，代码未动，冻结基线数字不受影响，未重跑；性能数字变化：无。</p>
+<p style="color:var(--muted);font-size:12px;margin:4px 0 0">变更记录 — 当前 HEAD：<span class="mono">e52a8e4</span>（Merge PR #2，在基线 <span class="mono">f5337a8</span> 之后 4 个提交）；提交范围：docs-only（<span class="mono">87b66ca</span> INDEX 登记设计档案页、docs 61→62、跟踪文件 316→317；<span class="mono">d80aeb6</span> 新增 <span class="mono">docs/design_archive.html</span>，即本页 2026-11-11 修订版）；回归结果：纯文档变更，代码未动，冻结基线数字不受影响，未重跑；性能数字变化：无。本行由其后一个 docs-only 提交写入。</p>
 <div class="callout warn" style="margin-top:12px"><b>维护规则（报警线）</b><p style="margin:6px 0 0;font-size:14px">此后<b>每次主分支推进，必须在本表追加一行</b>：新 HEAD、提交范围、回归测试结果、性能数字是否变化。文档与代码一旦脱节，<b>以本表为准报警</b>——先补表、再谈其他更新；本页其余各节的数字在对应表更新前视为冻结口径，不得单独改动。</p></div>
 <div class="callout" style="margin-top:12px"><b>对账结论</b><p style="margin:6px 0 0;font-size:14px">本地与仓库内资料<b>无丢失</b>。未进入本空间的每一项都不是遗漏，而是已在本表逐项指明去向：或为「原文在用户侧」（规则与学习资料、《AI 接手提示词》原文），或为「过程件已合入主仓」（早期补丁与说明）。本空间 §01–§12 覆盖全部已定稿内容，附录覆盖全部资料的存放位置——按本表逐项可回溯到每一份原始材料。</p></div>
 </section>
