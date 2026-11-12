@@ -35,7 +35,7 @@ SentryOutput SentryVision::process(const cv::Mat& bgr, double stamp, double gimb
     // based windows (misses 49 -> 3 on the slow-spin clip at equal end-to-
     // end hit rate) and a 110 px margin (bigger windows clip more light
     // bars at window borders and feed duplicate lights back to the
-    // tracker); see docs/roi_detection.md.
+    // tracker); see docs/design/roi_detection.md.
     roi_windows_.clear();
     if (roi_enabled_) {
         constexpr int kMargin = 60;

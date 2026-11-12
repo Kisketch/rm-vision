@@ -34,8 +34,37 @@ is a physical robot — colour + plate number + plate size — not "whatever
 blob is nearest"), and **evidence** (every headline number in this README
 can be reproduced from this repository alone, data included).
 
+## Quick start
+
+Linux, CMake ≥ 3.16, a C++17 compiler and OpenCV 4. Build, run the test
+suites, then evaluate the two reference recordings exactly as the
+regression gate does:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j"$(nproc)"
+ctest --test-dir build --output-on-failure          # 5 suites, all must pass
+gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video
+cat video/4.avi.part-00 video/4.avi.part-01 > video/4.avi
+python3 tools/regression.py --exe build/apps/autoaim_video   # frozen reference calibre
+python3 tools/regression.py --exe build/apps/autoaim_video --config core/config/default.yaml
+```
+
+Each video takes about 20 s (detection ≈ 3.4 ms per 1440×1080 frame on
+one core). To see what the detector sees on a single frame:
+`./build/apps/autoaim_lights video/3.avi --frames 2023 --out lights/`.
+
+**The two reference recordings** (release assets, 1440×1080 at 25 fps,
+one red No. 3 infantry robot spinning in front of the camera):
+
+| | frames | motion | what it stresses |
+|---|---:|---|---|
+| `3.avi` | 2209 | ≈ 2.6 rad/s, changes spin direction, drives up to the camera at the end | direction changes, close-range over-exposed light bars |
+| `4.avi` | 3416 | ≈ 8.3 rad/s steady spin | fast plate switching |
+
 ## Contents
 
+- [Quick start](#quick-start)
 - [Design rationale](#design-rationale) — the reasoning behind each stage,
   including what was tried and rejected, with the numbers that decided it
 - [Measured data](#measured-data) — calibration values, real-video results,
@@ -88,8 +117,10 @@ Two subtler points, both found by review and measurement:
 
 ### Detector: boring front end, guarded edges
 
-Colour-channel differencing (R−B for red targets) with an adaptive
-threshold finds light bars; bars are paired geometrically into armors,
+Colour-channel differencing (R−B for red targets) with a fixed
+threshold of 70 finds light bars (an adaptive threshold exists as a
+dim-venue robustness switch, off by default — it lost 0.8–1.0 pp on the
+reference footage); bars are paired geometrically into armors,
 corners are refined on each bar's PCA symmetry axis, and a small MLP
 classifies the digit. An ONNX keypoint backend (four corners per plate,
 per-corner confidence gating, `keypoint_min_conf` 0.25) can replace the
@@ -102,6 +133,25 @@ point normalises its input (an empty frame once segfaulted the pipeline —
 non-finite observations are now rejected at every stage boundary: PnP,
 tracker, pose buffer). Every one of those guards has a regression test,
 because each was a real crash or a real poisoned filter first.
+
+**Over-exposed bars, found frame by frame.** At close range a light
+bar's core saturates all three channels, so R−B collapses there; the
+1–2 px red rim survives thresholding but not the first erosion, and one
+bar arrives as two fragments that fail the length-ratio check against
+their partner — a squarely facing plate vanishes for whole frames
+(3.avi, frames 1966–2050). The detector now adds the union of two
+stacked fragments as an *extra* bar candidate when the gap between them
+is at least as bright as the fragments (the saturated core; a floor
+reflection leaves a dark gap), keeps the fragments, and lets pairing
+pick whichever reading matches its partner. A first version that
+*replaced* the fragments broke six correct plates — stray light stacked
+above a bar has a bright gap too — which is why the merge is additive.
+The same investigation found that horizontal light strips passed the
+bar filter (`makeLight` measured a lying-down blob's thickness as its
+length, so its tilt read 0°) and could veto real plates; they are now
+rejected. Live calibre: 3.avi 57.3% → 58.1%, 4.avi detections
+byte-identical, detection time unchanged
+([`docs/studies/split_light_merge.md`](docs/studies/split_light_merge.md)).
 
 ### Pose: multi-solution PnP with physical screening
 
@@ -337,7 +387,7 @@ and footage:
 | Configuration | Role | 3.avi | 4.avi | pred 0.32 s | hits/s |
 |---|---|---:|---:|---:|---:|
 | `core/config/video_reference.yaml` | frozen reference (assumed pinhole, zero distortion, 25 m/s) — reproduces the historical baselines | **67.5%** | **68.6%** | 14.3 / 13.3 px | 10.6 / 10.1 |
-| `core/config/default.yaml` | live config (measured calibration, 22 m/s, Stage K tracker tuning) | **57.3%** | **66.9%** | 15.3 / 12.4 px | 8.8 / 8.8 |
+| `core/config/default.yaml` | live config (measured calibration, 22 m/s, Stage K tracker tuning, split-bar merge) | **58.1%** | **66.9%** | 15.2 / 12.4 px | 9.1 / 8.8 |
 | sentry configs (`sentry/config/…`) | sentry strategy on the same footage | 67.6% | 71.9% | — | — |
 
 The live config scores lower *on these videos* because the videos were
@@ -355,7 +405,7 @@ method for definitions; robot EKF):
 |---|---|---:|---:|---:|---:|---:|
 | reference | 3.avi | 1440 | 1388 | 96.4% | 65.1% | 67.5% |
 | reference | 4.avi | 2049 | 2004 | 97.8% | 67.1% | 68.6% |
-| live | 3.avi | 1406 | 1356 | 96.4% | 55.3% | 57.3% |
+| live | 3.avi | 1420 | 1383 | 97.4% | 56.5% | 58.1% |
 | live | 4.avi | 1848 | 1804 | 97.6% | 65.3% | 66.9% |
 
 On this footage the detector is present at impact time for ~97% of
@@ -408,7 +458,7 @@ hard strafe, i.e. it is a model problem, not a noise problem.
 The `--stress` harness perturbs the frozen detection caches (occlusion
 dropout, whole-frame drops, decimation to half rate, timestamp jitter)
 and sweeps latency. Headline findings; the full matrix is in
-[`docs/FIELD_CONDITIONS_2026-11-11.md`](docs/FIELD_CONDITIONS_2026-11-11.md):
+[`docs/studies/FIELD_CONDITIONS_2026-11-11.md`](docs/studies/FIELD_CONDITIONS_2026-11-11.md):
 
 - **Frame drops are survivable; the old evaluator could not see it.**
   The pre-fix evaluator stepped the simulated gimbal by a constant
@@ -445,7 +495,7 @@ from 5 passes to 3, pixel-identical over 470 M px):
 
 Robot-EKF hit rate on the real videos (0.32 s prediction error in
 brackets). The full log with every sweep table is
-[`docs/pipeline_and_tuning.md`](docs/pipeline_and_tuning.md); the
+[`docs/project/pipeline_and_tuning.md`](docs/project/pipeline_and_tuning.md); the
 canonical frozen values are `BASELINE.md`'s.
 
 | Step | Change | video 3 | video 4 |
@@ -461,9 +511,10 @@ canonical frozen values are `BASELINE.md`'s.
 | I | hysteresis state fix (external review) | 66.9% (14.2) | 67.3% (14.8) |
 | J | + `q_yaw` 3, `q_r` 3e-3 (plateaus, not spikes) | 67.6% (14.3) | 68.6% (13.4) |
 | K | + `q_yaw_walk` 0.05, yaw-channel adaptation (live config only) | 57.3%* | 66.9%* |
+| L | + split-bar merge, horizontal-blob rejection (detector; live config only) | 58.1%* (15.2) | 66.9%* (12.4) |
 
-\* Stage K ships only in the live/sentry configurations; its row is
-therefore in the live calibre (see Frozen baselines) and is not
+\* Stages K and L ship only in the live/sentry configurations; their rows
+are therefore in the live calibre (see Frozen baselines) and are not
 comparable with the rows above. Under the reference calibre the same
 knob would read 68.4% / 71.1%, but writing it into the frozen calibre
 is a team decision and has not been taken.
@@ -485,7 +536,7 @@ Two cautionary results from the same log:
   change (higher frame rate, a better yaw observation, gimbal
   feedforward) moves the numbers now.
 
-A per-shot miss analysis (`docs/miss_analysis.md`) backs the direction:
+A per-shot miss analysis (`docs/studies/miss_analysis.md`) backs the direction:
 misses are dominated by yaw-rate jitter, not bias — aimed-at plate
 centres are correct (median `off_u` ≈ 0 on hits), the error direction
 follows the spin sign, and 40–49% of misses miss by less than half a
@@ -548,7 +599,7 @@ binary here by design — the algorithm ships as the `autoaim_core` library
 (`apps/` holds offline evaluation and simulation tools only), and
 `legacy/` is the previous on-robot program kept as a read-only archive,
 not a build input. A one-page deployment map (in Chinese, for the team)
-includes the [camera inventory and capture settings](docs/deployment_map.md#相机配置核对).
+includes the [camera inventory and capture settings](docs/deploy/deployment_map.md#相机配置核对).
 
 ## Repository layout
 
@@ -576,11 +627,19 @@ rm-vision/
 │
 ├── apps/                 # autoaim_video (offline evaluation) · autoaim_sim (simulator)
 │                         # autoaim_lights · detector_bench
-├── tests/                # three ctest suites: core, sentry, serial (PTY end-to-end)
+├── tests/                # five ctest entries: core, sentry, serial (PTY end-to-end),
+│                         # regression-gate contract, header self-containment
 ├── tools/                # regression gate, sim tuning, calibration helpers,
 │                         # offline evaluation harnesses
 ├── data/eval_cache/      # detection caches + tracker outputs + raw reports for both videos
-├── docs/                 # design notes, reviews, tuning studies (indexed in docs/INDEX.md)
+├── docs/                 # INDEX · api_overview · parameters · performance_charts, plus
+│   ├── design/           #   why each mechanism is built the way it is
+│   ├── studies/          #   A/B tests, ablations, sweeps, stress tests, rejected ideas
+│   ├── calibration/      #   camera facts, measurements, on-robot trial checklist
+│   ├── deploy/           #   what runs on the robot and how to install it
+│   ├── reviews/          #   code reviews, hardening rounds, audits
+│   ├── project/          #   monorepo migration, changes vs legacy, backlog, progress
+│   └── decisions/ · charts/ · detections/ · assets/
 ├── reports/              # simulation and real-video evaluation reports
 ├── legacy/               # the previous on-robot codebase, kept whole for reference
 └── archive/              # retired tooling and historical patches, labelled as such
@@ -592,12 +651,13 @@ A complete, annotated index of every directory is in
 ## Build and run
 
 Requirements: CMake ≥ 3.16, a C++17 compiler, OpenCV 4 (core, imgproc,
-calib3d, features2d, dnn).
+imgcodecs, videoio, highgui, calib3d, dnn). OpenCV 5 is not accepted by
+the build.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-ctest --test-dir build --output-on-failure     # 3 suites: core / sentry / serial
+ctest --test-dir build --output-on-failure     # 5 entries: core / sentry / serial / gate contract / headers
 ./build/apps/autoaim_sim                       # simulator table (see BASELINE.md)
 ./build/apps/autoaim_video <video.avi>         # offline evaluation on a recording
 ./build/sentry/sentry_robot --help             # sentry on-robot program
@@ -610,6 +670,13 @@ Options:
   MVS camera SDK for the physical robot. This path is compile-verified
   against an SDK stub; verify the SDK version/ABI on the target machine
   before relying on it.
+
+**CPU-limited machines and containers.** If OpenCV was built with the
+OpenMP backend (conda-forge builds are) and the process runs under a CPU
+quota smaller than the core count, OpenMP's default thread count
+oversubscribes the quota and stalls on throttling: measured 164 ms per
+frame instead of 3.4 ms under a 2-CPU quota on a 16-core host. Set
+`OMP_NUM_THREADS` to the quota (check `/sys/fs/cgroup/cpu.max`).
 
 For a physical camera, `tools/calibrate_camera.py` produces measured
 intrinsics from chessboard captures (≥ 12 sharp views, same lens/focus/
@@ -633,7 +700,7 @@ over-speed lockout) is a referee constraint, not a tuning target.
 
 ## On the robot
 
-- Work through [`docs/on_robot_trial_checklist.md`](docs/on_robot_trial_checklist.md)
+- Work through [`docs/calibration/on_robot_trial_checklist.md`](docs/calibration/on_robot_trial_checklist.md)
   in order. The **first** item is delay calibration: park the gimbal on
   a static plate, sweep for ~10 s (`sentry_robot --calib-delay`), and
   write the measured offset back — every later measurement depends on
@@ -674,22 +741,28 @@ over-speed lockout) is a referee constraint, not a tuning target.
 
 ## Documentation
 
-- [`docs/INDEX.md`](docs/INDEX.md) — annotated index of the whole tree.
-- [`docs/camera_hardware.md`](docs/camera_hardware.md) — the team's
+- [`docs/README.md`](docs/README.md) — map of the docs folders and where a
+  new document goes; [`docs/INDEX.md`](docs/INDEX.md) — annotated index of
+  the whole tree, file by file.
+- [`docs/studies/split_light_merge.md`](docs/studies/split_light_merge.md) —
+  the over-exposed-bar fix: diagnosis, the rejected first version, A/B
+  numbers in all calibres.
+- [`docs/calibration/camera_hardware.md`](docs/calibration/camera_hardware.md) — the team's
   actual cameras (Hikrobot MVS main camera, twin 720p omni cameras):
   frame rates, exposures, pixel formats, and the USB bandwidth caveat.
-- [`docs/pipeline_and_tuning.md`](docs/pipeline_and_tuning.md) — the
+- [`docs/project/pipeline_and_tuning.md`](docs/project/pipeline_and_tuning.md) — the
   full tuning log with every sweep table, the simulator-in-the-loop
   tuning study, and the detector visualisations.
 - [`BASELINE.md`](BASELINE.md) — frozen baselines, machine-dependence
   notes, and the two-configuration rule.
-- [`docs/FIELD_CONDITIONS_2026-11-11.md`](docs/FIELD_CONDITIONS_2026-11-11.md) —
+- [`docs/studies/FIELD_CONDITIONS_2026-11-11.md`](docs/studies/FIELD_CONDITIONS_2026-11-11.md) —
   field-condition stress matrix.
 - [`data/eval_cache/README.md`](data/eval_cache/README.md) — what the
   cached evaluation data is and how it was deduplicated.
 - Design notes per subsystem (timestamp alignment, bullet speed, target
-  identity and CRC, ROI detection, delay calibration) are in `docs/`,
-  indexed by topic in the index file.
+  identity and CRC, ROI detection, multi-target) are in
+  [`docs/design/`](docs/design/); every tuning decision with its data is
+  in [`docs/studies/`](docs/studies/).
 
 ## License
 

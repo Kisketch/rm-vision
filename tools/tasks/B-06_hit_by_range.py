@@ -5,7 +5,7 @@ Both videos are 25 fps recordings of the same robot at different distances.
 The track CSV has the estimated target centre per frame and the judged shot
 result, so we can bucket the hit rate by range instead of guessing.
 
-Output: docs/hit_by_range.md
+Output: docs/studies/hit_by_range.md
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def main() -> int:
         "",
         "*距离来自滤波器状态（xc,yc,zc），不是真值；分桶只用于相对比较。*",
     ]
-    out = Path("docs/hit_by_range.md")
+    out = Path("docs/studies/hit_by_range.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-8:]))
     return 0

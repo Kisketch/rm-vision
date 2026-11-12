@@ -12,5 +12,5 @@
   （恒速假设失效）成为已知短板，见模拟器 S8 与路线图 P2-10。
 - 备选与否决：逐板点 KF——数据否决（上行数字）；IMM 多模型——实验室
   保留，判据为真实视频不退化，未达前不进出厂配置（P2-10 的 NIS 自适应
-  子实验已因真实视频退化被否决，见 docs/nis_adapt_study.md）。
+  子实验已因真实视频退化被否决，见 docs/studies/nis_adapt_study.md）。
 - 证据：README 实测数据节、BASELINE.md、docs/performance_charts.md。

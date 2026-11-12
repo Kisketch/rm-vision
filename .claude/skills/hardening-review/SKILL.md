@@ -27,8 +27,8 @@ allowed-tools: Read, Grep, Glob, Bash(cmake *), Bash(cmake --build *), Bash(ctes
 - PoseBuffer：有界外推上限（--max-extrap-ms 默认 10）是否生效；默认参数下 attitude miss 率
 
 ## 单仓模块边界（合并后新增）
-- core/ 是否只有一份核心：禁止在 sentry/ 或 apps/ 里复制核心文件；模块间分叉必须与 docs/monorepo_migration.md 的分类一致
-- 不要把 docs/shared_core.md 当现行清单——它是已退役的历史文档，其校验脚本在新仓不存在
+- core/ 是否只有一份核心：禁止在 sentry/ 或 apps/ 里复制核心文件；模块间分叉必须与 docs/project/monorepo_migration.md 的分类一致
+- 不要把 docs/project/shared_core.md 当现行清单——它是已退役的历史文档，其校验脚本在新仓不存在
 - pitch 符号按模块核对：sentry 模块 Rz(yaw)·Ry(−pitch)·Rx(roll)、正 pitch 向下，与 core 侧相反
 
 ## 收尾

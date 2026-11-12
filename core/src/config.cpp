@@ -185,7 +185,7 @@ Config Config::load(const std::string& path) {
     return c;
 }
 
-// Ported from the sentry review branch (docs/review_2026-11.md Â§4.9),
+// Ported from the sentry review branch (docs/reviews/review_2026-11.md Â§4.9),
 // adapted: TargetConfig merged in with the rm-vision consolidation;
 // per-class ballistic fields added.
 std::vector<std::string> Config::validate() const {

@@ -81,7 +81,7 @@ def field_conditions():
     W, H, x0, y0, y1 = 920, 500, 70, 76, 400
     vmin, vmax = 40.0, 75.0
     p = open_svg(W, H, "Robustness under field stress (conditional hit rate, %)",
-                 "Synthetic stress injected into cached detections (not on-robot data). Vertical axis starts at 40%. Source: docs/FIELD_CONDITIONS_2026-11-11.md")
+                 "Synthetic stress injected into cached detections (not on-robot data). Vertical axis starts at 40%. Source: docs/studies/FIELD_CONDITIONS_2026-11-11.md")
     for t in [40, 50, 60, 70]:
         y = y1 - (t - vmin) / (vmax - vmin) * (y1 - y0)
         p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{GRID}"/>')
@@ -114,7 +114,7 @@ def latency():
     ]
     W, H = 920, 430
     p = open_svg(W, H, "Compute cost, legacy vs current",
-                 "Detection figures are approximate (full frame 6.5-8 ms, ROI 1.3-1.9 ms). Sources: docs/hardening.md, docs/roi_detection.md")
+                 "Detection figures are approximate (full frame 6.5-8 ms, ROI 1.3-1.9 ms). Sources: docs/reviews/hardening.md, docs/design/roi_detection.md")
     for i, (title, unit, old, new, note) in enumerate(panels):
         cx = 40 + i * 300
         vmax = old * 1.18
@@ -134,7 +134,7 @@ def latency():
 
 # ------------------------------------------------------------ NIS study
 def nis_adapt():
-    rows = [  # (label, delta pp) — docs/nis_adapt_study.md
+    rows = [  # (label, delta pp) — docs/studies/nis_adapt_study.md
         ("Simulation, pure strafe", 3.5),
         ("Simulation, spin + strafe", 7.0),
         ("Video N0, 3.avi", -2.0),
@@ -144,7 +144,7 @@ def nis_adapt():
     ]
     W, H = 920, 470
     p = open_svg(W, H, "P2-10 NIS-adaptive q: change in hit rate (pp)",
-                 "Helps in simulation, hurts on every real-video cell -> rejected for shipping. Source: docs/nis_adapt_study.md")
+                 "Helps in simulation, hurts on every real-video cell -> rejected for shipping. Source: docs/studies/nis_adapt_study.md")
     zx, scale, y = 470, 34.0, 108
     p.append(f'<line x1="{zx}" y1="86" x2="{zx}" y2="392" stroke="{INK}" stroke-width="1.4"/>')
     for t in [-6, -3, 0, 3, 6]:
@@ -164,13 +164,13 @@ def nis_adapt():
 
 # --------------------------------------------------------- sigma coverage
 def sigma_coverage():
-    # docs/sigma_coverage_study.md, reference calibre, ~57k simulated shots
+    # docs/studies/sigma_coverage_study.md, reference calibre, ~57k simulated shots
     bars = [("1-sigma, all modes", 83.0, TEAL, "nominal 68.3"),
             ("2-sigma, all modes", 89.3, BLUE, "nominal 95.4"),
             ("1-sigma, pure strafe only", 16.0, RED, "range 15-17")]
     W, H, x0, y0, y1, vmax = 920, 470, 70, 84, 372, 100.0
     p = open_svg(W, H, "Sigma coverage: predicted vs actual (%)",
-                 "The error distribution is a heavy-tailed mixture: no single scale calibrates 1-sigma and 2-sigma, and the weak mode hides inside the same sigma range -> fire gate stays OFF. Source: docs/sigma_coverage_study.md")
+                 "The error distribution is a heavy-tailed mixture: no single scale calibrates 1-sigma and 2-sigma, and the weak mode hides inside the same sigma range -> fire gate stays OFF. Source: docs/studies/sigma_coverage_study.md")
     y_axis(p, x0, y0, y1, vmax, [0, 25, 50, 75, 100], "%")
     for i, (label, v, colour, note) in enumerate(bars):
         x = x0 + 120 + i * 250
@@ -333,7 +333,7 @@ def sigma_calibration():
 
 
 def detector_tuning():
-    series = [  # (label, colour, 3.avi, 4.avi) - docs/detector_tuning_study.md
+    series = [  # (label, colour, 3.avi, 4.avi) - docs/studies/detector_tuning_study.md
         ("Baseline (shipped)", BLUE, 67.5, 68.6),
         ("Adaptive thr ON", AMBER, 66.5, 67.8),
         ("Fixed thr 60", TEAL, 67.5, 67.2),
@@ -344,7 +344,7 @@ def detector_tuning():
     W, H, x0, y0, y1 = 920, 540, 70, 76, 428
     vmin, vmax = 55.0, 72.0
     p = open_svg(W, H, "Detector tuning A/B: conditional hit rate (%)",
-                 "Fresh detection + full downstream evaluation per variant (N0). Vertical axis starts at 55%. Nothing beat the shipped settings; removing corner refinement is the only big mover - downwards. Source: docs/detector_tuning_study.md")
+                 "Fresh detection + full downstream evaluation per variant (N0). Vertical axis starts at 55%. Nothing beat the shipped settings; removing corner refinement is the only big mover - downwards. Source: docs/studies/detector_tuning_study.md")
     for t in [55, 60, 65, 70]:
         y = y1 - (t - vmin) / (vmax - vmin) * (y1 - y0)
         p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{GRID}"/>')
@@ -446,7 +446,7 @@ BALLI = {
 
 # ------------------------------------------------------- strategy ceiling
 def strategy_ceiling():
-    series = [  # (label, colour, 3.avi, 4.avi) - docs/MEASUREMENTS.md / BASELINE.md
+    series = [  # (label, colour, 3.avi, 4.avi) - docs/calibration/MEASUREMENTS.md / BASELINE.md
         ("direct (aim at current plate)", GRAY, 35.5, 56.7),
         ("point KF", RED, 29.6, 43.1),
         ("robot EKF (shipped)", BLUE, 67.5, 68.6),
@@ -454,7 +454,7 @@ def strategy_ceiling():
     ]
     W, H, x0, y0, y1, vmax = 920, 520, 70, 76, 408, 100.0
     p = open_svg(W, H, "Strategy ladder on real video (conditional hit rate, %)",
-                 "Same detections, four aiming strategies (N0). The oracle ceiling shows the remaining loss is prediction, not detection or execution. Sources: docs/MEASUREMENTS.md, BASELINE.md")
+                 "Same detections, four aiming strategies (N0). The oracle ceiling shows the remaining loss is prediction, not detection or execution. Sources: docs/calibration/MEASUREMENTS.md, BASELINE.md")
     y_axis(p, x0, y0, y1, vmax, [0, 25, 50, 75, 100], "%")
     bw, gap = 52, 10
     for gi, video in enumerate(["3.avi", "4.avi"]):
@@ -477,7 +477,7 @@ def strategy_ceiling():
 
 # ------------------------------------------------------------ ROI windows
 def roi_windows():
-    series = [  # (label, colour, misses 3.avi, misses 4.avi) - docs/roi_detection.md
+    series = [  # (label, colour, misses 3.avi, misses 4.avi) - docs/design/roi_detection.md
         ("Full frame (reference)", GRAY, 0, 0),
         ("Prev-observation windows +110", AMBER, 49, 14),
         ("Tracking-guided +60 (shipped)", TEAL, 3, 15),
@@ -485,7 +485,7 @@ def roi_windows():
     ]
     W, H, x0, y0, y1, vmax = 920, 520, 70, 76, 408, 110.0
     p = open_svg(W, H, "ROI window strategies: armors missed vs full frame",
-                 "Real-video A/B (docs/roi_detection.md). Bigger windows are NOT safer: at +110 px, overlapping windows clip light bars and spawn false armors - the shipped margin is +60 px.")
+                 "Real-video A/B (docs/design/roi_detection.md). Bigger windows are NOT safer: at +110 px, overlapping windows clip light bars and spawn false armors - the shipped margin is +60 px.")
     y_axis(p, x0, y0, y1, vmax, [0, 25, 50, 75, 100], "")
     bw, gap = 52, 10
     for gi, video in enumerate(["3.avi (slow spin)", "4.avi (fast spin)"]):
@@ -549,7 +549,7 @@ def usb_bandwidth():
     ]
     W, H, x0, y0, y1, vmax = 920, 500, 70, 76, 388, 680.0
     p = open_svg(W, H, "Main camera bandwidth at 165 fps (Bayer8, uncompressed)",
-                 "The camera is USB 3.0 but the team's VM link is USB 2.0 (~40 MB/s effective): at 1440x1080 the link caps the stream near 26 fps. Formula and context: docs/camera_hardware.md")
+                 "The camera is USB 3.0 but the team's VM link is USB 2.0 (~40 MB/s effective): at 1440x1080 the link caps the stream near 26 fps. Formula and context: docs/calibration/camera_hardware.md")
     y_axis(p, x0, y0, y1, vmax, [0, 170, 340, 510, 680], "")
     for i, (lab, mb, req) in enumerate(rows):
         x = x0 + 90 + i * 200

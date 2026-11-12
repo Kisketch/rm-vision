@@ -12,13 +12,13 @@
 | `sentry_robot-patch.md` | P0-1 哨兵侧接入的补丁说明 |
 | `P0-1-note.md` | P0-1 设计与交付说明 |
 
-以上工作的代码均已合入 `core/`、`sentry/` 现行代码（见 `docs/timestamp_design.md`、
-`docs/device_id_and_crc.md`），补丁仅作过程存档。
+以上工作的代码均已合入 `core/`、`sentry/` 现行代码（见 `docs/design/timestamp_design.md`、
+`docs/design/device_id_and_crc.md`），补丁仅作过程存档。
 
 ## shared-core/ — 已退役的双仓共享核心守卫
 
 双仓时代用来校验两仓同名文件一致性的机制，单仓合并后其职能由"只存一份"
-的结构本身取代，**已退役**，其清单文档保留在 `docs/shared_core.md`（历史）。
+的结构本身取代，**已退役**，其清单文档保留在 `docs/project/shared_core.md`（历史）。
 
 | 文件 | 内容 |
 |---|---|

@@ -90,7 +90,7 @@ tracker:
 target:
    max_distance: 10.
    lost_keep_time: 1.0
-   association_gate: 1.0   # legacy, unused: one track per identity (see docs/review_2026-11.md)
+   association_gate: 1.0   # legacy, unused: one track per identity (see docs/reviews/review_2026-11.md)
    switch_margin: 0.5
    require_tracking: 1
    # Earlier entries win.  A sentry is threatened by shooters, not by the

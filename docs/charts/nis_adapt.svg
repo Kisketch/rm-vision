@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="920" height="470" viewBox="0 0 920 470" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
 <rect width="920" height="470" fill="#0f172a"/>
 <text x="24" y="30" font-size="17" font-weight="bold" fill="#e2e8f0">P2-10 NIS-adaptive q: change in hit rate (pp)</text>
-<text x="24" y="50" font-size="11.5" fill="#94a3b8">Helps in simulation, hurts on every real-video cell -> rejected for shipping. Source: docs/nis_adapt_study.md</text>
+<text x="24" y="50" font-size="11.5" fill="#94a3b8">Helps in simulation, hurts on every real-video cell -> rejected for shipping. Source: docs/studies/nis_adapt_study.md</text>
 <line x1="470" y1="86" x2="470" y2="392" stroke="#e2e8f0" stroke-width="1.4"/>
 <text x="266.0" y="410" font-size="10.5" text-anchor="middle" fill="#94a3b8">-6</text>
 <text x="368.0" y="410" font-size="10.5" text-anchor="middle" fill="#94a3b8">-3</text>

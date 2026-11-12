@@ -267,7 +267,7 @@ void testSerialProtocol() {
 }
 
 // ---------------------------------------------------------------- added
-// Regression tests for the 2026-11 review fixes (see docs/review_2026-11.md).
+// Regression tests for the 2026-11 review fixes (see docs/reviews/review_2026-11.md).
 
 autoaim::ArmorObservation obsColored(const autoaim::CameraModel& cam, const cv::Vec3d& pos, double yaw,
                                      const std::string& number, autoaim::Color color) {

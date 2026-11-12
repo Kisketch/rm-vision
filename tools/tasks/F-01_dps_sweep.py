@@ -10,7 +10,7 @@ Until now different sweeps used different objectives (hit rate, hits/s,
 and re-sweeps the three knobs that were decided under different metrics:
 fire window, side angle, association gate.
 
-Output: docs/dps_sweep.md (+ config/default.yaml if a knob wins clearly)
+Output: docs/studies/dps_sweep.md (+ config/default.yaml if a knob wins clearly)
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ def main() -> int:
         "*评测是虚拟射击；DPS = 命中数/时长 × 10。*",
     ]
 
-    out = Path("docs/dps_sweep.md")
+    out = Path("docs/studies/dps_sweep.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nadopted: {adopted}")
     return 0

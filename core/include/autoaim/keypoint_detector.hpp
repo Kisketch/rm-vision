@@ -1,6 +1,6 @@
 // YOLO-pose keypoint armor detector (B-02, inference side).
 //
-// Implements the integration design of docs/yolo_keypoints_plan.md: a
+// Implements the integration design of docs/design/yolo_keypoints_plan.md: a
 // YOLOv8/v11-pose ONNX model (4 keypoints + class) run through OpenCV DNN,
 // producing the same ArmorDetection the traditional light-bar pipeline
 // produces, so pose/tracker/aimer call sites do not change.  Training is

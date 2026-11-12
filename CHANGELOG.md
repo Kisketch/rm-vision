@@ -2,7 +2,7 @@
 
 > 范围说明：本文件早期条目继承自 rm-sentry-integration 的哨兵变更史，
 > 合并后也记录全仓级变更，但不追求完整——全仓变更以 git 提交历史与
-> docs/ 下各轮审查文档（如 docs/engineering_review_r6.md）为准。
+> docs/ 下各轮审查文档（如 docs/reviews/engineering_review_r6.md）为准。
 
 ## 2026-11-11 — 检测前端：灯条断裂修复与横向色块过滤
 
@@ -27,7 +27,7 @@
 
 新增 `autoaim_video --stress`（`dropout` / `framedrop` / `decimate` / `jitter_ms` /
 `seed`），在检测缓存之后扰动，一次缓存即可复现"遮挡 / 掉帧 / 慢相机 / 时间戳抖动"。
-详细数据与结论见 [赛场条件压力测试](docs/FIELD_CONDITIONS_2026-11-11.md)。
+详细数据与结论见 [赛场条件压力测试](docs/studies/FIELD_CONDITIONS_2026-11-11.md)。
 
 - **修复评测器对固定帧率的隐含假设**：`evaluate()` 的仿真云台步长原来是常数
   `1/fps`，`ShotJudge` 又用 `T*fps` 当下标取前后帧。任何丢帧都会让云台少走一半
@@ -57,9 +57,9 @@
 - 增加 PnP 几何/数值/正深度检查；修正最终姿态重投影误差，经验残差门限默认关闭。
 - 增加 `--diagnostics` 导出逐检测和逐观测原因；补齐 N0 离线参考配置及 CI 集成测试。
 - 两视频 × 两配置的完整报告/跟踪输出保持一致；详细证据见
-  [位姿与关联诊断](docs/POSE_ASSOCIATION_DIAGNOSTICS_2026-11-10.md)、
-  [视频复测](docs/VIDEO_TEST_2026-11-10.md)及
-  [首轮修复](docs/REVIEW_UPDATE_2026-11-10.md)。
+  [位姿与关联诊断](docs/reviews/POSE_ASSOCIATION_DIAGNOSTICS_2026-11-10.md)、
+  [视频复测](docs/studies/VIDEO_TEST_2026-11-10.md)及
+  [首轮修复](docs/reviews/REVIEW_UPDATE_2026-11-10.md)。
 - 更新目录索引与配置口径说明，保留单份核心实现及历史材料。
 
 ## 2026-11-11 — Stage K：yaw 过程噪声拆分与 ω 机动检测
@@ -93,7 +93,7 @@
   纯预测误差）、`fire_err_px`（瞄准点到实际弹着点，执行误差）、`sigma_lat_px`
   （滤波器自报的横向 1σ）。三者对比可直接判断该修预测还是修云台。
 
-上述结论与仓库自己的 `docs/miss_analysis.md` 一致（"误差是角速度估计抖动主导"），
+上述结论与仓库自己的 `docs/studies/miss_analysis.md` 一致（"误差是角速度估计抖动主导"），
 只是这次把"抖动"量化成 σ(ω) 并拆开了过程噪声。
 
 ### 缺陷修复
@@ -130,7 +130,7 @@ N0 14.3→14.3 / 13.3→12.4 px。仿真均值 74.5% → 73.0%（−1.5 pp，容
 
 ## 2026-11-10 — 审查修复与性能优化（分支 `optimize/core-hardening`）
 
-详细分析、数据与合并前检查清单见 [`docs/review_2026-11.md`](docs/review_2026-11.md)。
+详细分析、数据与合并前检查清单见 [`docs/reviews/review_2026-11.md`](docs/reviews/review_2026-11.md)。
 
 ### 缺陷修复（均附回归测试，旧代码上会失败）
 
@@ -157,7 +157,7 @@ N0 14.3→14.3 / 13.3→12.4 px。仿真均值 74.5% → 73.0%（−1.5 pp，容
 ### 工程化
 
 - `Config::validate()`：加载时检查参数合法性并一次列出所有问题。
-- 新增 `aimer.yaw_offset_deg / pitch_offset_deg`（`docs/hardening.md` 有描述但此前缺失）。
+- 新增 `aimer.yaw_offset_deg / pitch_offset_deg`（`docs/reviews/hardening.md` 有描述但此前缺失）。
 - `serial_protocol.hpp` 不再依赖 OpenCV/检测器头文件。
 - `sentry_offline --roi`；删除误提交的 `.bak` 文件；修正 README 链接。
 

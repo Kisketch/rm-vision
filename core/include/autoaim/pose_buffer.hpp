@@ -1,6 +1,6 @@
 // Timestamped gimbal-pose ring buffer with quaternion interpolation.
 //
-// Implements step 2 of docs/timestamp_design.md (G-02): the serial link delivers
+// Implements step 2 of docs/design/timestamp_design.md (G-02): the serial link delivers
 // IMU quaternions with timestamps; the pose that belongs to a frame is the one
 // interpolated at the frame's *exposure* timestamp, not the newest sample.
 // Design budget from that document: image->pose alignment error <= 0.3 ms,

@@ -62,4 +62,4 @@ evaluate`，与核心链共用跟踪/瞄准/判分代码，所以离线数字可
    一会话一个实例，不要跨会话共用（滞回状态会串扰）。
 4. **AUTOAIM_ROOT**：apps 与 tests 靠它定位默认配置与模型路径，它是
    PUBLIC 编译定义且指向源码树 core/——这正是 install/export 暂缓的
-   原因（见 docs/engineering_review_r6.md 缓办节）。
+   原因（见 docs/reviews/engineering_review_r6.md 缓办节）。

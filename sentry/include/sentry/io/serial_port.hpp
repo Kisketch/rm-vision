@@ -2,7 +2,7 @@
 // protocol.  The vision side is transport-agnostic; this class is only used by
 // the robot executable.
 //
-// Attitude timing (G-02, docs/timestamp_design.md): the 17-byte
+// Attitude timing (G-02, docs/design/timestamp_design.md): the 17-byte
 // MCU frame carries no timestamp, so each frame is stamped on host receipt
 // minus `stamp_delay_s` - an estimate of the MCU-sample -> host-receipt lag
 // (wire time alone for 17 bytes at 115200 baud is ~1.5 ms).  Samples are kept

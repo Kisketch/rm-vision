@@ -4,7 +4,7 @@
 B-03/B-04 swept them one at a time. If the best value of the fire window depends
 on the yaw process noise (or vice versa), a 1-D sweep is misleading.
 
-Output: docs/parameter_interaction.md
+Output: docs/studies/parameter_interaction.md
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ def main() -> int:
         "",
         "*每个格子都是完整评测（含检测缓存）。*",
     ]
-    out = Path("docs/parameter_interaction.md")
+    out = Path("docs/studies/parameter_interaction.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nbest={best[0]}  -> {out}")
     return 0

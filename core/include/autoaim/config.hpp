@@ -30,7 +30,7 @@ struct DetectorConfig {
     Color enemy_color = Color::RED;
     int channel_diff_threshold = 70;  // R-B (red) / B-R (blue) binarisation threshold
     // Adaptive variant: thr = clamp(mean + k*std, min, max) computed per frame.
-    // Fixes the collapse under dim light measured in docs/exposure_robustness.md.
+    // Fixes the collapse under dim light measured in docs/studies/exposure_robustness.md.
     bool channel_diff_adaptive = false;
     double channel_diff_k = 4.5;
     double channel_diff_min = 40.0;
@@ -71,7 +71,7 @@ struct DetectorConfig {
     std::string model_path, label_path;
     double classify_threshold = 0.7;
     std::vector<std::string> ignore_classes = {"negative"};
-    // Keypoint (YOLO-pose) backend, docs/yolo_keypoints_plan.md (B-02).
+    // Keypoint (YOLO-pose) backend, docs/design/yolo_keypoints_plan.md (B-02).
     // "traditional" (default) is the light-bar pipeline; "onnx" runs the
     // keypoint model and falls back to traditional if the model cannot be
     // loaded, so a missing file never kills the robot app.

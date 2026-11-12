@@ -11,4 +11,4 @@
   哨兵调用点，CMake 目标依赖方向（sentry → core，永不反向）成为硬约束。
 - 备选与否决：保持两仓 + 子模块同步——漂移已经发生，否决；把哨兵逻辑
   并入核心大类——不同机器人的业务差异会污染共享实现，否决。
-- 证据：docs/monorepo_migration.md（合并逐文件决策与回归证据）。
+- 证据：docs/project/monorepo_migration.md（合并逐文件决策与回归证据）。

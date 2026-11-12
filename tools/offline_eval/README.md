@@ -13,4 +13,4 @@
 
 输入数据：视频在本仓 Release `data-v1-2026-11-09` 附件中，检测缓存在本目录；台架在本仓
 构建产物（`build/core` 的 `autoaim_core`）之上链接，具体编译命令见各源文件
-头部注释与 `docs/monorepo_migration.md` 的回归证据一节。
+头部注释与 `docs/project/monorepo_migration.md` 的回归证据一节。

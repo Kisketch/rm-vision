@@ -5,7 +5,7 @@ No code is changed. The numbers are derived from the constants we already use
 (25 fps, 60 ms latency, 25 m/s bullet) so the acceptance criteria in the roadmap
 have a stated basis instead of a guessed one.
 
-Output: docs/timestamp_design.md
+Output: docs/design/timestamp_design.md
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def main() -> int:
         "",
         "*本文是设计说明，数字为推导值；实测后以实测为准并回写本文。*",
     ]
-    out = Path("docs/timestamp_design.md")
+    out = Path("docs/design/timestamp_design.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[:14]))
     return 0

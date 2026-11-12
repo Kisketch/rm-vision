@@ -85,7 +85,7 @@ formatReport。检测、位姿、跟踪、判定全部是仓库本体代码（�
 
 回归基建就位后又做了一轮检测器优化，两项均为精确等价变形，已推送
 （rm-autoaim `5b19124`、rm-sentry-integration `9e9c181`，文档
-`docs/optimization_round2.md`）：
+`docs/studies/optimization_round2.md`）：
 
 1. **形态学链合并**：OPEN(3×3)+CLOSE(3×3,×2) 代数等价于 erode3→dilate7→erode5
    （6 次全图运算减到 3 次）；独立对照在 4.7 亿像素上逐像素差异为 0。

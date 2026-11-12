@@ -5,7 +5,7 @@ BASELINE claims the tuning is saturated. This checks it: each knob is moved
 ±20 % alone and both videos are re-evaluated; a knob that moves nothing is
 evidence for saturation, a knob that moves a lot is a candidate for re-tuning.
 
-Output: docs/parameter_sensitivity.md
+Output: docs/studies/parameter_sensitivity.md
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def main() -> int:
         "",
         "*每个点都是真实评测，缓存命中后单次约 6 s；命中率不含射频，改动前必须复核 hits/s。*",
     ]
-    out = Path("docs/parameter_sensitivity.md")
+    out = Path("docs/studies/parameter_sensitivity.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nwrote {out}")
     return 0

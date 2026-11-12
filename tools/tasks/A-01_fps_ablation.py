@@ -3,7 +3,7 @@
 
 Re-encodes the two 25 fps test videos at 12.5 and 6.25 fps (drop every other /
 every fourth frame, keep playback speed), runs the same evaluator, and writes
-docs/fps_ablation.md with hit rate, fire rate and the 0.32 s prediction error.
+docs/studies/fps_ablation.md with hit rate, fire rate and the 0.32 s prediction error.
 
 This is the other end of the "what would 100 fps buy us" curve: if halving the
 frame rate costs X pp, then the camera upgrade is worth roughly the same order
