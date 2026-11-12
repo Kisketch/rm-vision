@@ -5,8 +5,8 @@
 <h1 align="center">rm-vision</h1>
 
 <p align="center">
-  <strong>A RoboMaster vision auto-aim system based on a whole-robot EKF.</strong><br>
-  Armor detection → PnP pose estimation → whole-robot EKF tracking → ballistic solution → aiming and fire control, in C++17 (no ROS, no Eigen — OpenCV only). One shared core serves the infantry/hero robots and the sentry; the sentry adds multi-target management (including the outpost), a serial link to the MCU, and tracking-guided ROI detection.
+  <strong>A robot vision recognition and auto-aim system built around a whole-robot EKF.</strong><br>
+  Armor detection → PnP pose estimation → whole-robot EKF tracking → ballistic solution → aiming and fire control, in C++17 (no ROS, no Eigen — OpenCV only). One shared core serves the infantry/hero robots and the sentry; the sentry adds multi-target management (including the outpost), a serial link to the MCU, and tracking-guided ROI detection. Developed and validated on RoboMaster competition robots; the shared core is platform-independent and reusable on other robot platforms.
 </p>
 
 <p align="center">

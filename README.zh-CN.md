@@ -5,8 +5,8 @@
 <h1 align="center">rm-vision</h1>
 
 <p align="center">
-  <strong>一套基于整车 EKF 的 RoboMaster 视觉自瞄系统。</strong><br>
-  装甲检测 → PnP 位姿解算 → 整车 EKF 跟踪 → 弹道解算 → 瞄准与火控，全部用 C++17 实现（无 ROS、无 Eigen——只用 OpenCV）。一套共享核心同时服务步兵/英雄机器人与哨兵；哨兵在此之上增加多目标管理（含前哨站）、与 MCU 的串口链路，以及跟踪引导的 ROI 检测。
+  <strong>一套基于整车 EKF 的机器人视觉识别与自动瞄准系统。</strong><br>
+  装甲检测 → PnP 位姿解算 → 整车 EKF 跟踪 → 弹道解算 → 瞄准与火控，全部用 C++17 实现（无 ROS、无 Eigen——只用 OpenCV）。一套共享核心同时服务步兵/英雄机器人与哨兵；哨兵在此之上增加多目标管理（含前哨站）、与 MCU 的串口链路，以及跟踪引导的 ROI 检测。本系统在 RoboMaster 竞赛机器人上开发与验证；共享核心与平台无关，可迁移到其他机器人平台。
 </p>
 
 <p align="center">
