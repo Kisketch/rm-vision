@@ -1,6 +1,6 @@
 # Evaluation caches — real-video regression data (in git)
 
-The raw material behind every real-video number in `BASELINE.md` and
+Historical inputs and outputs cited by `BASELINE.md` and
 `reports/real_video_regression/`: per-frame detection caches, tracker
 output CSVs, evaluation reports and run logs for the two reference
 recordings. The recordings themselves are release assets (too large for
@@ -16,7 +16,6 @@ data/eval_cache/
 │   ├── v3_track.csv · v3_report.md            # headline run
 │   ├── v3_n0_* · v3_n1_*                      # config-calibre ablation (BASELINE §11)
 │   ├── v3_bullet_* · v3_camonly_*             # bullet-speed / camera-only ablations
-│   ├── v3new_*                                # post-review code, same cache
 │   └── 3_cur_* · 3_opt_* · 3_ported_*         # porting-comparison runs (sentry lineage)
 └── 4/                 # everything for 4.avi (3416 frames), same structure
 ```

@@ -38,6 +38,15 @@ jobs:
       - name: Test (core + sentry + serial)
         run: ctest --test-dir build --output-on-failure
 
+      - name: Comparison video frame alignment
+        run: /usr/bin/python3 tests/test_compare_video.py
+
+      - name: Verify published charts and diagrams
+        run: |
+          python3 tools/make_charts.py
+          python3 tools/make_diagrams.py
+          git diff --exit-code -- docs/charts docs/diagrams
+
       - name: Detection cache integration
         run: /usr/bin/python3 tests/test_cache.py build/apps/autoaim_video
 

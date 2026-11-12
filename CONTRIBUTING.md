@@ -55,7 +55,7 @@
 cmake -S . -B build            # 开关：BUILD_SENTRY / BUILD_APPS /
                                # BUILD_TESTING（CTest 标准，默认全开）
 cmake --build build -j
-ctest --test-dir build --output-on-failure
+(cd build && ctest --output-on-failure)
 ```
 
 CTest 五项，提交前必须全绿：`autoaim_tests`（core 套件，按模块拆在
