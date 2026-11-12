@@ -2,9 +2,9 @@
 
 本文件是全仓的**完整目录表**：每个目录一行，标注用途、内容与维护状态。
 文件总数与分类汇总见文末；完整性审计（每个源文件去向的逐项对账）见
-[`completeness_audit_2026-11.md`](completeness_audit_2026-11.md)。
+[`completeness_audit_2026-11.md`](reviews/completeness_audit_2026-11.md)。
 根 README 是入口与构建说明；项目叙事（结果/评测/调参）见
-[`pipeline_and_tuning.md`](pipeline_and_tuning.md)。
+[`pipeline_and_tuning.md`](project/pipeline_and_tuning.md)。
 
 ## 顶层
 
@@ -42,20 +42,51 @@
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `docs/` | 74 | 全部设计/审查/调参文档（见下方 docs 分类表） |
+| `docs/`（根） | 5 | 入口页：本索引、`README.md`（目录导航）、`api_overview`、`parameters`、`performance_charts` |
+| `docs/design/` | 9 | 设计：为什么这样设计 |
+| `docs/studies/` | 27 | 研究：A/B、消融、扫描、压力测试、否决方案 |
+| `docs/calibration/` | 5 | 标定与实测 |
+| `docs/deploy/` | 3 | 部署与目标机 |
+| `docs/reviews/` | 12 | 审查、加固与审计 |
+| `docs/project/` | 13 | 项目史与盘点（含设计档案页 design_archive.html） |
 | `docs/charts/` | 17 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
 | `docs/assets/` | 1 | 仓库标志 logo.svg（README 顶部居中展示） |
 | `docs/decisions/` | 3 | 架构决策记录 ADR-001 共享核心 / ADR-002 整车 EKF / ADR-003 CameraSource 与曝光戳 |
-| `docs/detections/` | 9 | 检测效果样例图/视频（说明用） |
+| `docs/detections/` | 11 | 检测效果样例图/视频（说明用；含灯条断裂修复前后对比图） |
 | `reports/` | 3 | 仿真与真视频汇总报告（sim_report 由 UTF-16 转码为 UTF-8，文本不变） |
 | `reports/real_video_regression/` | 9 | 真视频回归分项报告（N0/N1/弹速/标定四组 × 两视频 + 总报告） |
 
-### docs/ 分类表
+### docs/ 分类表（目录即分类，2026-11-11 起）
 
-- **设计**：api_overview（公共 API 速览：两条流水线入口与语义约定）、
-  timestamp_design、attitude_timestamp_alignment、timestamp_alignment、
-  device_id_and_crc、bullet_speed、yolo_keypoints_plan、multi_target、roi_detection
-- **审查与加固**：full_audit_2026-11、review_2026-11、review_2026-11_round2、
+- **入口页（`docs/`）**：[README](README.md)（目录导航与"新文档放哪"）、
+  [api_overview](api_overview.md)（公共 API 速览：两条流水线入口与语义约定）、
+  [parameters](parameters.md)（参数清单）、
+  [performance_charts](performance_charts.md)（数据图表页：十七张深色主题 SVG 图表呈现命中率/压力/耗时/误差预算、两项否决研究，以及误差与强度的时间线、预测时域曲线、sigma 校准、检测器 A/B、模拟器场景、策略阶梯、ROI 窗口、弹道曲线与相机带宽，生成脚本 tools/make_charts.py）
+- **设计（`design/`）**：timestamp_design、attitude_timestamp_alignment、timestamp_alignment、
+  device_id_and_crc、bullet_speed、yolo_keypoints_plan、multi_target、roi_detection、
+  SENTRY_INTEGRATION（哨兵视觉整合：旧仓 → 新核的替代设计）
+- **研究（`studies/`）**：
+  - 检测：split_light_merge（灯条断裂修复与横向色块过滤：过曝芯切断灯条导致近距离正对板整帧漏检，
+    追加式合并 + 亮缝判据，现行口径 3.avi +0.8 pp，4.avi 逐字节不变）、
+    detector_tuning_study（检测器参数 A/B：阈值 60/80、自适应阈值、分类阈值 0.6 均未达
+    合入标准，出厂参数保持；角点精化经消融证实值 +3–4 pp，原始数据存目标工作区）、
+    adaptive_threshold、exposure_robustness、threshold_vs_range、window_by_range
+  - 跟踪与预测：sigma_coverage_study（P2-9 门控标定研究：仿真覆盖率标定出 FSS* 1.97/2.22，但分布不可
+    单一 scale 标定且真实视频迁移失败、hits/s 净损失——结论门控保持关闭，附重开条件）、
+    nis_adapt_study（P2-10 子实验：NIS 驱动自适应 q——仿真平移 +3.5/+7.0 pp 成立，但真实
+    视频阈值锁存、占用 92–100% 帧，四格守门全退化，否决出厂；τ 联动仿真即灾难性否决；
+    补丁留实验副本未合入，附重开条件）、carry_velocity、warmup_gate、occlusion_reassociation
+  - 开火与命中：fire_window、impact_margin、dps_sweep、hit_by_range、hit_by_omega、
+    miss_analysis、failure_modes、gimbal_ff（已否决方案记录）
+  - 参数与条件：parameter_sensitivity、parameter_interaction、fps_ablation、fx_sensitivity、
+    FIELD_CONDITIONS_2026-11-11（遮挡/掉帧/降采样/抖动/延迟压力矩阵）、VIDEO_TEST_2026-11-10（用户视频复测）
+  - 性能：optimization、optimization_round2
+- **标定与实测（`calibration/`）**：distortion_order、MEASUREMENTS、on_robot_trial_checklist（上车试机清单）、
+  calibration_record_template（标定档案模板：重标定必须存原始图像/工具输出/重投影误差，不只留五个数字）、
+  camera_hardware（相机硬件与采集参数：队伍实机主相机/全向感知相机配置表，已与 perservance 代码逐项对照，含本仓默认值修正与 USB 带宽提醒）
+- **部署（`deploy/`）**：deployment_map（部署地图：上车代码位置、构建产物与配置清单、目录总表——新人先看这页）、
+  DEPLOY_IT13、ubuntu2204_compat
+- **审查与加固（`reviews/`）**：full_audit_2026-11、review_2026-11、review_2026-11_round2、
   review_response、core_hardening_port、hardening、code_review_improvements、
   REVIEW_UPDATE_2026-11-10、POSE_ASSOCIATION_DIAGNOSTICS_2026-11-10、
   engineering_review_r6（第六轮工程化审查处置：命名空间归属、
@@ -65,33 +96,15 @@
   code_review_fixes_r3（第三轮源码级审查的九项处置：预测协方差补过程噪声并附
   门控 A/B、迭代收敛判定与普查、Yaw NIS 帧聚合、过期观测拒绝、PnP 误差回退、
   MVS 频率/读回/超时三修、贪心关联按实测标准暂缓）、
-  sigma_coverage_study（P2-9 门控标定研究：仿真覆盖率标定出 FSS* 1.97/2.22，但分布不可
-  单一 scale 标定且真实视频迁移失败、hits/s 净损失——结论门控保持关闭，附重开条件）、
-  nis_adapt_study（P2-10 子实验：NIS 驱动自适应 q——仿真平移 +3.5/+7.0 pp 成立，但真实
-  视频阈值锁存、占用 92–100% 帧，四格守门全退化，否决出厂；τ 联动仿真即灾难性否决；
-  补丁留实验副本未合入，附重开条件）、
-  detector_tuning_study（检测器参数 A/B：阈值 60/80、自适应阈值、分类阈值 0.6 均未达
-  合入标准，出厂参数保持；角点精化经消融证实值 +3–4 pp，原始数据存目标工作区）
-- **标定与实测**：distortion_order、MEASUREMENTS、on_robot_trial_checklist（上车试机清单）、
-  calibration_record_template（标定档案模板：重标定必须存原始图像/工具输出/重投影误差，不只留五个数字）
-- **调参研究**：parameter_sensitivity、parameter_interaction、parameters、
-  adaptive_threshold、carry_velocity、warmup_gate、fire_window、exposure_robustness、
-  fps_ablation、fx_sensitivity、threshold_vs_range、window_by_range、hit_by_range、
-  hit_by_omega、impact_margin、dps_sweep、occlusion_reassociation、miss_analysis、
-  FIELD_CONDITIONS_2026-11-11（遮挡/掉帧/降采样/抖动/延迟压力矩阵）
-- **性能**：optimization、optimization_round2
-- **交付与盘点**：deployment_map（部署地图：上车代码位置、构建产物与配置清单、目录总表——新人先看这页）、
+  completeness_audit_2026-11（迁移时完整性审计）
+- **项目史与盘点（`project/`）**：
   changes_vs_legacy（相对老代码的改动总览：11 类改动逐项说明作用与证据，含已否决方案清单）、
-  performance_charts（数据图表页：十七张深色主题 SVG 图表呈现命中率/压力/耗时/误差预算、两项否决研究，以及误差与强度的时间线、预测时域曲线、sigma 校准、检测器 A/B、模拟器场景、策略阶梯、ROI 窗口、弹道曲线与相机带宽，生成脚本 tools/make_charts.py）、
-  camera_hardware（相机硬件与采集参数：队伍实机主相机/全向感知相机配置表，已与 perservance 代码逐项对照，含本仓默认值修正与 USB 带宽提醒）、
   design_archive.html（设计档案总览页，浏览器直接打开；数字以 BASELINE.md 为准）、
-  monorepo_migration（合并决策与回归证据）、
-  completeness_audit_2026-11（迁移时完整性审计）、VIDEO_TEST_2026-11-10（用户视频复测）、software_completion、
+  monorepo_migration（合并决策与回归证据）、software_completion、
   software-only-inventory-and-data-needed（软件盘点与待补数据清单）、
   legacy_comparison（新旧代码对比）、pipeline_and_tuning（项目叙事/原主仓 README）、
-  BACKLOG、SENTRY_BACKLOG、PROGRESS_2026-11-04、EXTERNAL_COMPARISON、
-  SENTRY_INTEGRATION、DEPLOY_IT13、automation、ubuntu2204_compat、
-  gimbal_ff（已否决方案记录）、failure_modes、shared_core（已退役机制，历史）
+  BACKLOG、SENTRY_BACKLOG、PROGRESS_2026-11-04、EXTERNAL_COMPARISON、automation、
+  shared_core（已退役机制，历史）
 
 ## 历史与旧代码
 
@@ -120,7 +133,10 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 365 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 368 个（`git ls-files`，2026-11-11 文档分目录后复核）；迁移审计的 269 个是历史快照。
+2026-11-11：`docs/` 74 篇平铺文档按用途移入 `design/ studies/ calibration/ deploy/ reviews/ project/`
+（只移动不改名，全仓链接逐个重算，链接检查 0 失效），新增 `docs/README.md`、
+`studies/split_light_merge.md` 与一张对比图。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。

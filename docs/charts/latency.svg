@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="920" height="430" viewBox="0 0 920 430" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
 <rect width="920" height="430" fill="#0f172a"/>
 <text x="24" y="30" font-size="17" font-weight="bold" fill="#e2e8f0">Compute cost, legacy vs current</text>
-<text x="24" y="50" font-size="11.5" fill="#94a3b8">Detection figures are approximate (full frame 6.5-8 ms, ROI 1.3-1.9 ms). Sources: docs/hardening.md, docs/roi_detection.md</text>
+<text x="24" y="50" font-size="11.5" fill="#94a3b8">Detection figures are approximate (full frame 6.5-8 ms, ROI 1.3-1.9 ms). Sources: docs/reviews/hardening.md, docs/design/roi_detection.md</text>
 <text x="170" y="92" font-size="13.5" font-weight="bold" text-anchor="middle" fill="#e2e8f0">Pose solve (us)</text>
 <rect x="80" y="144" width="76" height="186" fill="#64748b"/>
 <text x="118" y="138" font-size="12" text-anchor="middle" fill="#e2e8f0">1302</text>

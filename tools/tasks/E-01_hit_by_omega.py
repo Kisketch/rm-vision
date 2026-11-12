@@ -5,7 +5,7 @@ The tracker's hardest regime is not distance but spin rate: at 8 rad/s the plate
 crosses a full panel width in ~25 ms. This buckets every judged shot by the
 estimated |w| and reports hit rate and shots per bucket.
 
-Output: docs/hit_by_omega.md
+Output: docs/studies/hit_by_omega.md
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ def main() -> int:
         "",
         "*ω 来自滤波器状态，非真值；分桶仅用于相对比较。*",
     ]
-    out = Path("docs/hit_by_omega.md")
+    out = Path("docs/studies/hit_by_omega.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-7:]))
     return 0

@@ -43,7 +43,7 @@ public:
                          double gimbal_pitch = 0.0, double gimbal_roll = 0.0);
 
     void setEnemyColor(autoaim::Color c) { detector_.setEnemyColor(c); }
-    // Tracking-guided windowed detection (docs/roi_detection.md): search
+    // Tracking-guided windowed detection (docs/design/roi_detection.md): search
     // only around every active track's predicted plate positions (all
     // plate slots, projected at the current frame's attitude, 60 px
     // margin). Full scans happen on a 30-frame period and immediately

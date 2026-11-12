@@ -8,7 +8,7 @@ recover them at the cost of more false light bars.
 Sweeps 50..90 and reports hit rate plus the fraction of frames with at least one
 armor ("frames with armor"), which is the detection-recall proxy.
 
-Output: docs/threshold_vs_range.md
+Output: docs/studies/threshold_vs_range.md
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ def main() -> int:
         "",
         "*命中率来自虚拟射击；召回代理只用“有目标帧占比”，没有人工标注。*",
     ]
-    out = Path("docs/threshold_vs_range.md")
+    out = Path("docs/studies/threshold_vs_range.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-8:]))
     return 0

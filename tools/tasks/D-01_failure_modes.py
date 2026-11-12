@@ -6,7 +6,7 @@ the far-off ones happen: right after the tracker re-acquires the target, or in
 steady tracking? If they cluster after re-acquisition, the fix is occlusion
 handling, not the estimator's steady-state noise.
 
-Output: docs/failure_modes.md
+Output: docs/studies/failure_modes.md
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ def main() -> int:
         "",
         "*状态取自 `*_track.csv` 的 `state` 列；分层是相对的，没有真值标注。*",
     ]
-    out = Path("docs/failure_modes.md")
+    out = Path("docs/studies/failure_modes.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-8:]))
     return 0

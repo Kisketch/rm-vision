@@ -32,8 +32,34 @@
 编号 + 装甲尺寸——而不是"离得最近的那个色块"），以及**证据**（本 README 中的每一个
 标题数字都能仅凭本仓库复现，数据也在仓内）。
 
+## 快速上手
+
+Linux、CMake ≥ 3.16、C++17 编译器、OpenCV 4。构建、跑测试，然后用与回归门禁完全
+相同的方式评测两段参考视频：
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j"$(nproc)"
+ctest --test-dir build --output-on-failure          # 5 项，必须全过
+gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video
+cat video/4.avi.part-00 video/4.avi.part-01 > video/4.avi
+python3 tools/regression.py --exe build/apps/autoaim_video   # 冻结参考口径
+python3 tools/regression.py --exe build/apps/autoaim_video --config core/config/default.yaml
+```
+
+每段视频约 20 s（检测单核 ≈ 3.4 ms / 帧，1440×1080）。想看检测器在某一帧上看到了
+什么：`./build/apps/autoaim_lights video/3.avi --frames 2023 --out lights/`。
+
+**两段参考视频**（Release 附件，1440×1080、25 fps，一台红色 3 号步兵在镜头前小陀螺）：
+
+| | 帧数 | 运动 | 考验什么 |
+|---|---:|---|---|
+| `3.avi` | 2209 | 约 2.6 rad/s，会换向，末段开到镜头前 | 换向、近距离过曝灯条 |
+| `4.avi` | 3416 | 约 8.3 rad/s 稳态旋转 | 快速换板 |
+
 ## 目录
 
+- [快速上手](#快速上手)
 - [设计理据](#设计理据) — 每个环节背后的推理，
   包括尝试过又被否决的方案，以及做出取舍的数字
 - [实测数据](#实测数据) — 标定数值、真实视频结果、
@@ -80,7 +106,8 @@ frame ──► Detector ──► PoseSolver ──► Tracker (EKF) ──► 
 
 ### 检测器：朴素的前端，严密的边界防护
 
-颜色通道差分（对红色目标用 R−B）配合自适应阈值找出灯条；灯条按几何关系
+颜色通道差分（对红色目标用 R−B）配合固定阈值 70 找出灯条（自适应阈值作为暗场鲁棒性
+开关保留，默认关——它在参考视频上会掉 0.8–1.0 pp）；灯条按几何关系
 配对成装甲板，角点在每根灯条的 PCA 对称轴上精化，再由一个小 MLP 分类
 数字。一个 ONNX 关键点后端（每块装甲四个角点、逐角点置信度门控，
 `keypoint_min_conf` 0.25）可以替换前端而不动下游代码；模型加载失败时，
@@ -91,6 +118,17 @@ frame ──► Detector ──► PoseSolver ──► Tracker (EKF) ──► 
 非有限的观测在每一个环节边界都会被拒绝：PnP、跟踪器、姿态缓冲）。每一个
 这样的防护都有一条回归测试，因为它们每一个都曾经是一次真实的崩溃，或
 一个被真实毒化过的滤波器。
+
+**过曝灯条：逐帧查出来的。** 近距离时灯条中心三个通道同时饱和，R−B 在那里塌掉；
+1–2 px 宽的红边能过阈值却过不了第一次腐蚀，于是一根灯条变成两截，与另一侧灯条的
+长度比不合格——一块正对相机的板会整帧消失（3.avi 第 1966–2050 帧）。检测器现在
+把两段上下堆叠碎片的并集作为**额外**灯条候选加入，条件是两段之间的缝至少和碎片
+一样亮（过曝芯；地面倒影留下的缝是暗的），碎片本身保留，由配对选出与另一侧灯条
+最匹配的读法。第一版用并集**替换**碎片，误伤了六块正确的板——灯条上方的杂光也有
+亮缝——所以合并是追加式的。同一次排查还发现横向灯带能通过灯条过滤（`makeLight`
+把横躺色块的厚度量成了长度，倾角读成 0°），并可能否决真实的板；现在一律拒收。
+出厂口径：3.avi 57.3% → 58.1%，4.avi 检测输出逐字节不变，检测耗时不变
+（[`docs/studies/split_light_merge.md`](docs/studies/split_light_merge.md)）。
 
 ### 位姿：多解 PnP 与物理筛选
 
@@ -285,7 +323,7 @@ direct 得 43%，robot EKF 得 99.6%。oracle 一行是评测自身的上限（�
 | 配置 | 角色 | 3.avi | 4.avi | 预测 0.32 s | hits/s |
 |---|---|---:|---:|---:|---:|
 | `core/config/video_reference.yaml` | 冻结参考（假设针孔、零畸变、25 m/s）——复现历史基线 | **67.5%** | **68.6%** | 14.3 / 13.3 px | 10.6 / 10.1 |
-| `core/config/default.yaml` | 出厂配置（实测标定、22 m/s、Stage K 跟踪调参） | **57.3%** | **66.9%** | 15.3 / 12.4 px | 8.8 / 8.8 |
+| `core/config/default.yaml` | 出厂配置（实测标定、22 m/s、Stage K 跟踪调参、灯条断裂修复） | **58.1%** | **66.9%** | 15.2 / 12.4 px | 9.1 / 8.8 |
 | 哨兵配置（`sentry/config/…`） | 同一段视频上的哨兵策略 | 67.6% | 71.9% | — | — |
 
 出厂配置*在这两段视频上*得分更低，是因为视频不是用队伍的相机拍的：参考
@@ -299,7 +337,7 @@ direct 得 43%，robot EKF 得 99.6%。oracle 一行是评测自身的上限（�
 |---|---|---:|---:|---:|---:|---:|
 | 参考口径 | 3.avi | 1440 | 1388 | 96.4% | 65.1% | 67.5% |
 | 参考口径 | 4.avi | 2049 | 2004 | 97.8% | 67.1% | 68.6% |
-| 出厂口径 | 3.avi | 1406 | 1356 | 96.4% | 55.3% | 57.3% |
+| 出厂口径 | 3.avi | 1420 | 1383 | 97.4% | 56.5% | 58.1% |
 | 出厂口径 | 4.avi | 1848 | 1804 | 97.6% | 65.3% | 66.9% |
 
 在这段视频上，检测器在弹着时刻在场的比例约为 97%，所以条件口径的标题
@@ -346,7 +384,7 @@ direct 得 43%，robot EKF 得 99.6%。oracle 一行是评测自身的上限（�
 
 `--stress` 工具扰动冻结的检测缓存（遮挡丢弃、整帧丢弃、抽帧到半速、
 时间戳抖动）并扫描延迟。核心结论如下；完整矩阵在
-[`docs/FIELD_CONDITIONS_2026-11-11.md`](docs/FIELD_CONDITIONS_2026-11-11.md)：
+[`docs/studies/FIELD_CONDITIONS_2026-11-11.md`](docs/studies/FIELD_CONDITIONS_2026-11-11.md)：
 
 - **丢帧是可以活下来的；旧评测器看不见这一点。** 修复前的评测器以恒定的
   1/fps 步进模拟云台、并按 T·fps 索引弹着帧，所以 20% 的丢帧被读成 22.5%
@@ -378,7 +416,7 @@ direct 得 43%，robot EKF 得 99.6%。oracle 一行是评测自身的上限（�
 
 真实视频上的 robot EKF 命中率（括号内为 0.32 s 预测误差）。带每一张扫描
 表的完整日志在
-[`docs/pipeline_and_tuning.md`](docs/pipeline_and_tuning.md)；权威的冻结值以
+[`docs/project/pipeline_and_tuning.md`](docs/project/pipeline_and_tuning.md)；权威的冻结值以
 `BASELINE.md` 为准。
 
 | 步骤 | 改动 | 视频 3 | 视频 4 |
@@ -394,8 +432,9 @@ direct 得 43%，robot EKF 得 99.6%。oracle 一行是评测自身的上限（�
 | I | 迟滞状态修复（外部审查） | 66.9% (14.2) | 67.3% (14.8) |
 | J | + `q_yaw` 3、`q_r` 3e-3（是平台不是尖峰） | 67.6% (14.3) | 68.6% (13.4) |
 | K | + `q_yaw_walk` 0.05、yaw 通道自适应（仅出厂配置） | 57.3%* | 66.9%* |
+| L | + 灯条断裂合并、横向色块拒收（检测器；仅出厂配置） | 58.1%* (15.2) | 66.9%* (12.4) |
 
-\* Stage K 只在出厂/哨兵配置中出厂；所以它这一行是出厂口径（见冻结基线），
+\* Stage K 与 L 只在出厂/哨兵配置中出厂；所以这两行是出厂口径（见冻结基线），
 与上面各行不可比。在参考口径下同一个旋钮会读出 68.4% / 71.1%，但把它写进
 冻结口径是队伍的决定，尚未做出。
 
@@ -412,7 +451,7 @@ direct 得 43%，robot EKF 得 99.6%。oracle 一行是评测自身的上限（�
   命中率，但花掉 1.1–1.2 hits/s——是 DPS 损失）。调参已经耗尽；现在只有
   结构性改变（更高的帧率、更好的 yaw 观测、云台前馈）能移动这些数字。
 
-一份逐发脱靶分析（`docs/miss_analysis.md`）支持这个方向：脱靶由 yaw 角
+一份逐发脱靶分析（`docs/studies/miss_analysis.md`）支持这个方向：脱靶由 yaw 角
 速度抖动主导，而不是偏置——瞄准的装甲中心是对的（命中时 `off_u` 中位
 ≈ 0），误差方向跟随旋转符号，40–49% 的脱靶偏出不到半个装甲宽。
 
@@ -457,7 +496,7 @@ python3 tools/regression.py            # video gate (frozen reference) + simulat
 实车二进制——算法以 `autoaim_core` 库的形式出厂（`apps/` 只放离线评测与
 仿真工具），`legacy/` 是此前的实车程序，作为只读档案保留，不是构建输入。
 一页部署地图（中文，给队伍看）包含
-[相机清单与采集设置](docs/deployment_map.md#相机配置核对)。
+[相机清单与采集设置](docs/deploy/deployment_map.md#相机配置核对)。
 
 ## 仓库结构
 
@@ -485,11 +524,19 @@ rm-vision/
 │
 ├── apps/                 # autoaim_video (offline evaluation) · autoaim_sim (simulator)
 │                         # autoaim_lights · detector_bench
-├── tests/                # three ctest suites: core, sentry, serial (PTY end-to-end)
+├── tests/                # five ctest entries: core, sentry, serial (PTY end-to-end),
+│                         # regression-gate contract, header self-containment
 ├── tools/                # regression gate, sim tuning, calibration helpers,
 │                         # offline evaluation harnesses
 ├── data/eval_cache/      # detection caches + tracker outputs + raw reports for both videos
-├── docs/                 # design notes, reviews, tuning studies (indexed in docs/INDEX.md)
+├── docs/                 # INDEX · api_overview · parameters · performance_charts, plus
+│   ├── design/           #   why each mechanism is built the way it is
+│   ├── studies/          #   A/B tests, ablations, sweeps, stress tests, rejected ideas
+│   ├── calibration/      #   camera facts, measurements, on-robot trial checklist
+│   ├── deploy/           #   what runs on the robot and how to install it
+│   ├── reviews/          #   code reviews, hardening rounds, audits
+│   ├── project/          #   monorepo migration, changes vs legacy, backlog, progress
+│   └── decisions/ · charts/ · detections/ · assets/
 ├── reports/              # simulation and real-video evaluation reports
 ├── legacy/               # the previous on-robot codebase, kept whole for reference
 └── archive/              # retired tooling and historical patches, labelled as such
@@ -500,13 +547,13 @@ rm-vision/
 
 ## 构建与运行
 
-要求：CMake ≥ 3.16、C++17 编译器、OpenCV 4（core、imgproc、calib3d、
-features2d、dnn）。
+要求：CMake ≥ 3.16、C++17 编译器、OpenCV 4（core、imgproc、imgcodecs、
+videoio、highgui、calib3d、dnn）。构建不接受 OpenCV 5。
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-ctest --test-dir build --output-on-failure     # 3 suites: core / sentry / serial
+ctest --test-dir build --output-on-failure     # 5 entries: core / sentry / serial / gate contract / headers
 ./build/apps/autoaim_sim                       # simulator table (see BASELINE.md)
 ./build/apps/autoaim_video <video.avi>         # offline evaluation on a recording
 ./build/sentry/sentry_robot --help             # sentry on-robot program
@@ -518,6 +565,11 @@ ctest --test-dir build --output-on-failure     # 3 suites: core / sentry / seria
 - `-DAUTOAIM_WITH_MVS=ON -DMVS_ROOT=<path>` — 针对海康 MVS 相机 SDK 构建，
   用于实体机器人。这条路径已对着一个 SDK 桩做过编译验证；依赖它之前，
   先在目标机器上核对 SDK 版本/ABI。
+
+**CPU 受限的机器与容器。** 如果 OpenCV 用 OpenMP 后端构建（conda-forge 的包就是），
+而进程运行在小于核数的 CPU 配额下，OpenMP 默认线程数会超额占用配额、因节流而卡住：
+在 16 核主机、2 CPU 配额下实测 164 ms / 帧，正常应为 3.4 ms。把 `OMP_NUM_THREADS`
+设成配额数（查看 `/sys/fs/cgroup/cpu.max`）。
 
 对实体相机，`tools/calibrate_camera.py` 从棋盘格采集产出实测内参
 （≥ 12 个清晰视角，与机器人相同的镜头/焦距/分辨率）；
@@ -538,7 +590,7 @@ ctest --test-dir build --output-on-failure     # 3 suites: core / sentry / seria
 
 ## 上车运行
 
-- 按顺序走 [`docs/on_robot_trial_checklist.md`](docs/on_robot_trial_checklist.md)。
+- 按顺序走 [`docs/calibration/on_robot_trial_checklist.md`](docs/calibration/on_robot_trial_checklist.md)。
   **第一项**是延迟标定：把云台停在一块静止装甲板上，扫动约 10 s
   （`sentry_robot --calib-delay`），把测得的偏移写回——之后每一次测量都
   依赖它。然后依次是：端到端延迟、静态瞄准偏移、42 mm 弹速/阻力拟合、
@@ -568,19 +620,23 @@ ctest --test-dir build --output-on-failure     # 3 suites: core / sentry / seria
 
 ## 文档
 
-- [`docs/INDEX.md`](docs/INDEX.md) — 整棵树的带注索引。
-- [`docs/camera_hardware.md`](docs/camera_hardware.md) — 队伍的实际相机
+- [`docs/README.md`](docs/README.md) — docs 各目录导航与"新文档放哪"；
+  [`docs/INDEX.md`](docs/INDEX.md) — 整棵树逐文件的带注索引。
+- [`docs/studies/split_light_merge.md`](docs/studies/split_light_merge.md) —
+  过曝灯条修复：诊断过程、被否决的第一版、各口径 A/B 数字。
+- [`docs/calibration/camera_hardware.md`](docs/calibration/camera_hardware.md) — 队伍的实际相机
   （海康 MVS 主相机、两台 720p 全向相机）：帧率、曝光、像素格式，以及
   USB 带宽注意事项。
-- [`docs/pipeline_and_tuning.md`](docs/pipeline_and_tuning.md) — 完整的
+- [`docs/project/pipeline_and_tuning.md`](docs/project/pipeline_and_tuning.md) — 完整的
   调参日志，带每一张扫描表、模拟器在环调参研究，以及检测器可视化。
 - [`BASELINE.md`](BASELINE.md) — 冻结基线、机器相关性说明，以及双配置规则。
-- [`docs/FIELD_CONDITIONS_2026-11-11.md`](docs/FIELD_CONDITIONS_2026-11-11.md) —
+- [`docs/studies/FIELD_CONDITIONS_2026-11-11.md`](docs/studies/FIELD_CONDITIONS_2026-11-11.md) —
   赛场条件压力矩阵。
 - [`data/eval_cache/README.md`](data/eval_cache/README.md) — 缓存的评测
   数据是什么、如何去重。
-- 各子系统的设计说明（时间戳对齐、弹速、目标身份与 CRC、ROI 检测、延迟
-  标定）在 `docs/` 中，按主题在索引文件中索引。
+- 各子系统的设计说明（时间戳对齐、弹速、目标身份与 CRC、ROI 检测、多目标）
+  在 [`docs/design/`](docs/design/)；每一项调参决策及其数据在
+  [`docs/studies/`](docs/studies/)。
 
 ## 许可证
 

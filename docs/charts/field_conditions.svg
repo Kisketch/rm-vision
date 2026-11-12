@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="920" height="500" viewBox="0 0 920 500" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
 <rect width="920" height="500" fill="#0f172a"/>
 <text x="24" y="30" font-size="17" font-weight="bold" fill="#e2e8f0">Robustness under field stress (conditional hit rate, %)</text>
-<text x="24" y="50" font-size="11.5" fill="#94a3b8">Synthetic stress injected into cached detections (not on-robot data). Vertical axis starts at 40%. Source: docs/FIELD_CONDITIONS_2026-11-11.md</text>
+<text x="24" y="50" font-size="11.5" fill="#94a3b8">Synthetic stress injected into cached detections (not on-robot data). Vertical axis starts at 40%. Source: docs/studies/FIELD_CONDITIONS_2026-11-11.md</text>
 <line x1="70" y1="400" x2="890" y2="400" stroke="#1e293b"/>
 <text x="64" y="404" font-size="10.5" text-anchor="end" fill="#94a3b8">40%</text>
 <line x1="70" y1="307" x2="890" y2="307" stroke="#1e293b"/>

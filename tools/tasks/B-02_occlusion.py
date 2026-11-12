@@ -9,7 +9,7 @@ claimed by a track that belongs to B.
 This model hides A for k frames at the moment of closest approach, then measures
 whether A's next observation lands on a foreign track.
 
-Output: docs/occlusion_reassociation.md
+Output: docs/studies/occlusion_reassociation.md
 """
 
 from __future__ import annotations
@@ -140,7 +140,7 @@ def main() -> int:
         "",
         "*模型级仿真，用于确认失败模式；接 `TargetManager` 复现才算代码结论。*",
     ]
-    out = Path("docs/occlusion_reassociation.md")
+    out = Path("docs/studies/occlusion_reassociation.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-7:]))
     return 0

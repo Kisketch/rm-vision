@@ -20,7 +20,7 @@
   代差级优势，哨兵配置在 4.avi 达 71.9。
 - **注意**：实测口径（57.3/66.9）低于 N0 参考口径不是退化——测试
   视频非队伍相机所摄，口径差异见 changes_vs_legacy.md 第 9 节。
-- 出处：BASELINE.md、docs/MEASUREMENTS.md。
+- 出处：BASELINE.md、docs/calibration/MEASUREMENTS.md。
 
 ## 2. 赛场压力：慢目标稳、快目标怕丢帧、最怕时间戳抖动
 
@@ -39,7 +39,7 @@
   （40% 丢帧 55.3、12.5 fps 55.2）；最脆弱的是时间戳质量——
   10 ms 抖动直接掉到 49.0。这就是时间对齐与延迟标定列为
   上车第一优先级的原因。
-- 出处：docs/FIELD_CONDITIONS_2026-11-11.md（合成注入，非实测）。
+- 出处：docs/studies/FIELD_CONDITIONS_2026-11-11.md（合成注入，非实测）。
 
 ## 3. 计算耗时：解算与检测都已降一个量级
 
@@ -53,7 +53,7 @@
 
 - **强项**：位姿解算 1302→72 µs、弹道 109→40 µs、检测
   ~7.0→~1.6 ms/帧，整条管线有充足的帧率余量。
-- 出处：docs/hardening.md、docs/roi_detection.md。
+- 出处：docs/reviews/hardening.md、docs/design/roi_detection.md。
 
 ## 4. 否决案例一：NIS 自适应 q——仿真有效、真实全退化
 
@@ -68,7 +68,7 @@
 - **弱项（方法论）**：同一机制在仿真 +3.5/+7.0 pp、真实视频
   四格 −0.6~−4.5 pp。滤波器自报统计量的尺度在仿真与真实间
   漂移，固定阈值机制不可直接迁移——已否决出厂，补丁留档。
-- 出处：docs/nis_adapt_study.md。
+- 出处：docs/studies/nis_adapt_study.md。
 
 ## 5. 否决案例二：sigma 门控——不确定度抓不住最弱模式
 
@@ -84,7 +84,7 @@
   68.3）、2σ 欠覆盖（89.3 vs 95.4），无单一标度可校准；而最弱
   的纯平移模式 1σ 覆盖仅约 16%，且其 sigma 与良好模式重叠，
   门控原理上抓不住。sigma 只可作序数风险分数，门控保持关闭。
-- 出处：docs/sigma_coverage_study.md。
+- 出处：docs/studies/sigma_coverage_study.md。
 
 ## 6. 剩余误差在哪：预测，不是执行
 
@@ -181,7 +181,7 @@
 - **结论**：阈值 60/80、自适应阈值、分类阈值 0.6 都没赢过出厂
   设置；唯一的大家伙是关掉角点精化——直接掉 3–4 pp。检测器
   的改进红线：不许牺牲角点精度。
-- 出处：docs/detector_tuning_study.md。
+- 出处：docs/studies/detector_tuning_study.md。
 
 ## 12. 模拟器场景：旋转全胜、强横移是悬崖
 
@@ -222,7 +222,7 @@
 - **读法**：同一批检测、四种瞄准策略。oracle 是"作弊看未来"的
   上限（99.3/93.8）——现行 67.5/68.6 与上限的差距几乎全在预测，
   不在检测与执行，与第 6、7 节互相印证。
-- 出处：docs/MEASUREMENTS.md、BASELINE.md。
+- 出处：docs/calibration/MEASUREMENTS.md、BASELINE.md。
 
 ## 14. ROI 窗口：边距不是越大越安全
 
@@ -238,7 +238,7 @@
 - **结论**：跟踪预测窗口 +60 px 把慢旋漏检从 49 压到 3；+110 px
   因窗口重叠截断灯条反而暴涨到 98（快旋）。窗口策略的甜点是
   实测出来的，不是拍出来的。
-- 出处：docs/roi_detection.md。
+- 出处：docs/design/roi_detection.md。
 
 ## 15. 弹道曲线：25 → 22 m/s 的物理代价
 
@@ -271,4 +271,4 @@
   152–609 MB/s，而队伍虚拟机链路只有 USB 2.0 的约 40 MB/s——
   1440×1080 下帧率会被卡在约 26 fps。这是上车前必须实测的
   第一笔账（路线图 P1-5）。
-- 出处：docs/camera_hardware.md（带宽公式按 Bayer8 计算）。
+- 出处：docs/calibration/camera_hardware.md（带宽公式按 Bayer8 计算）。

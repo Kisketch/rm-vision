@@ -8,7 +8,7 @@ node sent `yaw_vel` (the legacy protocol already has a slot for it).
 If the gain is large, the integration must send the rate; if it is flat, that
 whole argument is moot.
 
-Output: docs/gimbal_ff.md
+Output: docs/studies/gimbal_ff.md
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ def main() -> int:
         "",
         "*评测里的云台是一阶滞后模型，真实云台的 τ 与最大角速度需要实测替换。*",
     ]
-    out = Path("docs/gimbal_ff.md")
+    out = Path("docs/studies/gimbal_ff.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nwrote {out}")
     return 0

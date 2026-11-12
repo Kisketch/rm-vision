@@ -6,7 +6,7 @@ developed on Windows with OpenCV 4.14 and on Ubuntu 26.04 with 4.10. Scan the
 sources for things that would break on 22.04, and list what must be verified on
 the real machine.
 
-Output: docs/ubuntu2204_compat.md
+Output: docs/deploy/ubuntu2204_compat.md
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ def main() -> int:
     if cxx20:
         lines.insert(8, f"- 发现 C++20 特性：{'; '.join(cxx20)}（GCC 11 部分支持，需实机确认）")
 
-    out = Path("docs/ubuntu2204_compat.md")
+    out = Path("docs/deploy/ubuntu2204_compat.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[:10]))
     return 0

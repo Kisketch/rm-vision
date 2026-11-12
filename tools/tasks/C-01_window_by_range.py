@@ -7,7 +7,7 @@ far (fewer, better shots), wide when close.
 
 This runs the three windows and buckets the judged shots by range.
 
-Output: docs/window_by_range.md
+Output: docs/studies/window_by_range.md
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def main() -> int:
         "",
         "*数据来自虚拟射击；距离是滤波器估计值。*",
     ]
-    out = Path("docs/window_by_range.md")
+    out = Path("docs/studies/window_by_range.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-9:]))
     return 0

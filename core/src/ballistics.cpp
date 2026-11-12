@@ -39,7 +39,7 @@ bool Ballistics::simulate(double pitch, double s_target, double& height, double&
     S s{0, 0, v0 * std::cos(pitch), v0 * std::sin(pitch)};
     double t = 0;
     // RK4 with a 10 ms step and a cubic-Hermite crossing (ported from the
-    // sentry review branch, docs/review_2026-11.md §4.7).  The old 1 ms step
+    // sentry review branch, docs/reviews/review_2026-11.md §4.7).  The old 1 ms step
     // with a linear crossing spent ~10x the work for less accuracy: against a
     // 10 us reference over 1-25 m and pitch -17..34 deg, the linear crossing
     // errs up to 1.2 um; the Hermite crossing (exact derivatives at both step
@@ -104,7 +104,7 @@ BallisticSolution Ballistics::solve(double s, double h) const {
     // last two evaluations, which converges in 2-3 simulations instead of the
     // fixed point's linear rate.  Falls back to the fixed-point step whenever
     // the secant slope is degenerate.  Same 0.5 mm acceptance as before.
-    // (Secant ported from the sentry review branch, docs/review_2026-11.md §4.7.)
+    // (Secant ported from the sentry review branch, docs/reviews/review_2026-11.md §4.7.)
     double prev_aim = 0, prev_f = 0;
     bool have_prev = false;
     for (int i = 0; i < 30; ++i) {

@@ -6,7 +6,7 @@
 // This class belongs to the sentry module (namespace sentry, header under
 // sentry/), not to the shared core: only the sentry pipeline keeps one track
 // per robot identity.  It lived under autoaim/ with namespace autoaim until
-// the round-6 engineering review - see docs/engineering_review_r6.md.
+// the round-6 engineering review - see docs/reviews/engineering_review_r6.md.
 #pragma once
 
 #include <memory>

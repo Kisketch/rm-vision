@@ -10,7 +10,7 @@ It is a model-level study, not a run of the C++ code: the point is to compare
 gate policies under controlled separations, which the real videos cannot do
 (they only ever contain one robot).
 
-Output: docs/multi_target.md
+Output: docs/design/multi_target.md
 """
 
 from __future__ import annotations
@@ -131,7 +131,7 @@ def main() -> int:
         "",
         "*这是模型级仿真，不是 C++ 实测。*",
     ]
-    out = Path("docs/multi_target.md")
+    out = Path("docs/design/multi_target.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-9:]))
     return 0

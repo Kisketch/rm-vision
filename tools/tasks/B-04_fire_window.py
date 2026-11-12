@@ -6,7 +6,7 @@ A narrower facing window means fewer shots, so hit rate alone would be a lie:
 this script sweeps 22..30 and reports hit rate *and* hits/s, then adopts the
 value only if both videos improve on the combined score.
 
-Output: docs/fire_window.md (+ config/default.yaml if adopted)
+Output: docs/studies/fire_window.md (+ config/default.yaml if adopted)
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def main() -> int:
         "",
         "*评测是虚拟射击，射频按可验证射击/时长计。*",
     ]
-    out = Path("docs/fire_window.md")
+    out = Path("docs/studies/fire_window.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"adopt={adopt} -> {out}")
     return 0

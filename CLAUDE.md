@@ -6,7 +6,7 @@ RoboMaster 视觉自瞄统一代码仓：步兵/英雄与哨兵共用同一套�
 C++17 / CMake / OpenCV 4。规则以 2026 赛季为准，2027 仅作前瞻。
 
 当前代码以 `main` 最新提交为准；冻结指标口径见 `BASELINE.md` 与
-`docs/monorepo_migration.md`，离线 N0 复现用 `core/config/video_reference.yaml`。
+`docs/project/monorepo_migration.md`，离线 N0 复现用 `core/config/video_reference.yaml`。
 公开仓 https://github.com/Kisketch/rm-vision ，CI 见 GitHub Actions。
 旧两仓 rm-autoaim / rm-sentry-integration 已归档只读，**不要再往旧仓推代码**；
 作业仓 rm-armor-detection 不在本仓范围内，**一律不动**；回归视频在本仓 Release `data-v1-2026-11-09` 附件中。
@@ -41,8 +41,8 @@ ctest --test-dir build --output-on-failure   # 5 项: autoaim_tests / sentry_tes
   detector_bench（构建产物在 `build/apps/`）
 - `tests/` — 三套测试；`docs/` — 设计与审计文档；`tools/` — 回归/调参/标定脚本
 - `legacy/` — 旧上车代码 auto-aim-master 整树存档，**只读参考，禁止修改**
-- 关键文档：`docs/monorepo_migration.md`（合并决策与回归证据）、
-  `docs/pipeline_and_tuning.md`（原两仓项目 README 合并版：结果、评测方法、调参日志）、
+- 关键文档：`docs/project/monorepo_migration.md`（合并决策与回归证据）、
+  `docs/project/pipeline_and_tuning.md`（原两仓项目 README 合并版：结果、评测方法、调参日志）、
   `BASELINE.md`（冻结回归基线）
 
 ## 硬约定（违反就是 bug）
@@ -83,9 +83,9 @@ ctest --test-dir build --output-on-failure   # 5 项: autoaim_tests / sentry_tes
   全部板位、60px 边距。110px 边距已被实验证伪（窗口重叠裁灯条→假装甲），禁止改回。
   ROI 开时新进入视野的目标最长约 1.2 s 才被发现（30 帧全扫周期），这是已知提醒。
 - **单仓之后没有“跨仓移植”**：core 只有一份，改核心直接改 `core/`，不要复制
-  文件到 sentry/ 或反向复制。`docs/shared_core.md` 是合并前的历史清单，**已退役**，
+  文件到 sentry/ 或反向复制。`docs/project/shared_core.md` 是合并前的历史清单，**已退役**，
   其配套校验脚本在新仓不存在，不要引用它、不要“恢复”它。模块间有意分叉
-  （前哨站、姿态架构、弹种 API 等）见 `docs/monorepo_migration.md`。
+  （前哨站、姿态架构、弹种 API 等）见 `docs/project/monorepo_migration.md`。
 
 ## 参数真实性
 

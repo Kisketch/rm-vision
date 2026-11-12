@@ -82,8 +82,12 @@ tests/CMakeLists.txt 和 test_main.cpp 的调用表——只写文件不登记�
 ## 文档纪律
 
 - 新增/删除/移动文件，必须同步更新 docs/INDEX.md 与
-  docs/deployment_map.md 里的文件计数，并给新文档在 INDEX 分类表里
+  docs/deploy/deployment_map.md 里的文件计数，并给新文档在 INDEX 分类表里
   登记。计数对不上就是未完成的提交。
+- 新文档按用途放进 docs/ 的子目录（design / studies / calibration /
+  deploy / reviews / project，判断标准见 docs/README.md），不要再平铺到
+  docs/ 根目录；根目录只放入口页。移动文档时全仓链接要一起改，提交前
+  确认没有失效的相对链接。
 - README.md 与 README.zh-CN.md 是同源双语版：改一版，必须同步另一版
   （数字、表格、代码块保持逐项一致，锚点按各自语言本地化）。
 - 新的设计决策写一篇 ADR 进 docs/decisions/（背景/决策/后果/被否决
@@ -97,5 +101,5 @@ tests/CMakeLists.txt 和 test_main.cpp 的调用表——只写文件不登记�
   些测试、冻结数字是否复现）。
 - 推送到 main 前，先确认本地树与远端无未同步差异（本仓有过"从旧本地
   副本整文件推送、覆盖掉队友新提交"的事发记录，教训在
-  docs/engineering_review_r6.md 与历轮审查文档里）。
+  docs/reviews/engineering_review_r6.md 与历轮审查文档里）。
 - 涉及电机/发射机构的改动：发射默认禁用，先确认安全再谈功能。

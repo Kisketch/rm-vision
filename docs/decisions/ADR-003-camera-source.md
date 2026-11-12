@@ -15,5 +15,5 @@
 - 备选与否决：各处直用 cv::VideoCapture + 接收时刻戳——旧实现，已实测
   为最大误差源，否决；只抽象 MVS、离线另走一套——评测与实车行为会
   分叉，否决。
-- 证据：docs/timestamp_design.md、docs/attitude_timestamp_alignment.md、
-  docs/camera_hardware.md。
+- 证据：docs/design/timestamp_design.md、docs/design/attitude_timestamp_alignment.md、
+  docs/calibration/camera_hardware.md。

@@ -1,6 +1,6 @@
 // Camera acquisition with exposure timestamps.
 //
-// Implements step 1 of docs/timestamp_design.md (G-02): every frame leaves
+// Implements step 1 of docs/design/timestamp_design.md (G-02): every frame leaves
 // this interface carrying the host-clock time of its *exposure centre*, so
 // the pose side can interpolate the gimbal pose at that instant (see
 // pose_buffer.hpp) instead of guessing with "now".

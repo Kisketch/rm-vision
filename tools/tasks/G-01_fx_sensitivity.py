@@ -5,7 +5,7 @@ The videos have no calibration, so fx=2400 is an assumption (8 mm lens on a
 3.45 um sensor gives 2319). This sweep answers whether R-02 (calibration) is
 worth a day: it changes fx by ±12 % and measures the hit-rate response.
 
-Output: docs/fx_sensitivity.md
+Output: docs/studies/fx_sensitivity.md
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def main() -> int:
         "",
         "*`--set fx=` 会同时改 fx/fy，深度随之变化；命中率变化包含“深度误差”与“角尺寸误差”两部分。*",
     ]
-    out = Path("docs/fx_sensitivity.md")
+    out = Path("docs/studies/fx_sensitivity.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nwrote {out}")
     return 0

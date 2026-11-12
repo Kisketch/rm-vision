@@ -6,7 +6,7 @@ half-widths, 0 = centre, 1 = edge). This is the most direct picture of accuracy
 the evaluation can give: if most hits sit at |u| < 0.4 there is margin to spend;
 if they hug the edge, the system is running on luck.
 
-Output: docs/impact_margin.md
+Output: docs/studies/impact_margin.md
 """
 
 from __future__ import annotations
@@ -70,13 +70,13 @@ def main() -> int:
         f"- 命中的落点中位偏移 {statistics.median(hits):.2f} 半宽：**有余量但不宽裕**——"
         f"超过 3/4 半宽才算“擦边命中”的只占 {edge_hits:.1f}%。",
         f"- 未命中里 {pct(misses, 0.50):.1f}% 落在 0.5 半宽以内，说明大多数打偏**只差一点点**，"
-        "和之前 `docs/miss_analysis.md` 的结论一致（40–49% 只出界半个板宽）。",
+        "和之前 `docs/studies/miss_analysis.md` 的结论一致（40–49% 只出界半个板宽）。",
         "- 这意味着：把系统误差再压 10–20% 就能把这批擦边球变成命中，收益比调开火窗口大；",
         "  而压误差的方向是标定精度、时间戳、yaw 观测，不是参数。",
         "",
         "*`off_u` 由虚拟射击判定给出，单位是板半宽。*",
     ]
-    out = Path("docs/impact_margin.md")
+    out = Path("docs/studies/impact_margin.md")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[-8:]))
     return 0
