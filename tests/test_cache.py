@@ -83,7 +83,8 @@ def main() -> None:
         cache = out / "clip_detections.txt"
         cache.write_text("0 0.000 1\n" + "1 0.040 0\n" * 11, encoding="utf-8")
         assert "detected 12 frames" in run(binary, a, out, "--set", "refine_corners=0")
-        for key in ("refine_corners", "channel_diff_threshold", "diff_adaptive", "diff_k", "diff_min", "diff_max"):
+        for key in ("refine_corners", "channel_diff_threshold", "diff_adaptive", "diff_k", "diff_min", "diff_max",
+                    "reject_horizontal_lights", "merge_split_lights", "merge_max_gap_ratio"):
             invalid = subprocess.run(
                 [str(binary), str(a), "--out", str(out), "--sweep", f"{key}=0,1"],
                 text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

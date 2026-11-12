@@ -4,6 +4,25 @@
 > 合并后也记录全仓级变更，但不追求完整——全仓变更以 git 提交历史与
 > docs/ 下各轮审查文档（如 docs/engineering_review_r6.md）为准。
 
+## 2026-11-11 — 检测前端：灯条断裂修复与横向色块过滤
+
+逐帧排查两段实拍视频的漏检段，修了两个检测前端缺陷（[详细分析](docs/studies/split_light_merge.md)）：
+
+- **过曝灯条被切成两段**：近距离时灯条中心三通道饱和，R−B 塌到阈值以下，细红边又被
+  3×3 腐蚀吃掉，一根灯条变两截，配对因长度比失败、整帧漏检。新增
+  `merge_split_lights`：上下堆叠、宽度相近、间隙不大且**间隙比碎片更亮**（过曝芯的
+  物理特征；地面倒影的缝是暗的）的两块，其并集作为**额外**候选加入，碎片保留，
+  配对按长度一致性选优。第一版"替换"会误伤 6 块正确的板（灯条上方的杂光），
+  改为"追加"后全部恢复。
+- **横向色块被当成灯条**：`makeLight` 对横躺矩形取到的"长度"是厚度、倾角恒为 0°，
+  倾角过滤失效，车顶/车底灯带混进灯条候选，可经 `reject_contained_lights` 否决真板。
+  新增 `reject_horizontal_lights`：长度 < 宽度即拒收。
+- **结果**：`default.yaml` 3.avi 条件命中 57.3% → 58.1%（hits/s 8.8 → 9.1），
+  哨兵 `sentry.yaml` 68.3% → 68.9%；4.avi 检测输出逐字节不变。N0 冻结口径不受影响
+  （结构体默认关）。单帧耗时不变（3.3–3.5 ms）。BASELINE §12 记录重新冻结。
+- 测试：`testSplitLightMerge`、`testHorizontalBlobRejected`（都同时断言旧行为会失败）；
+  `autoaim_video` 缓存签名纳入三个新参数，`--sweep` 拒收（会改变检测）。
+
 ## 2026-11-11 — 赛场条件压力测试与评测器帧率解耦
 
 新增 `autoaim_video --stress`（`dropout` / `framedrop` / `decimate` / `jitter_ms` /

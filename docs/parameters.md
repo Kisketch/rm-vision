@@ -3,7 +3,7 @@
 把 `config.hpp` 的字段、`config/default.yaml` 的取值、`setParam()` 的可调名三者对齐。
 **能否 `--set`** 决定了它能否进自动扫描；不能的只能改文件后重编译或重跑。
 
-共 68 个参数：可直接 `--set` 的 **34** 个，需改文件的 **34** 个。
+共 71 个参数：可直接 `--set` 的 **37** 个，需改文件的 **34** 个。
 
 ## 可直接扫描
 
@@ -26,6 +26,8 @@
 | `latency` | 0.06 |
 | `max_fire_facing_deg` | 30 |
 | `max_match_distance` | 0.35 |
+| `merge_max_gap_ratio` | 0.5 |
+| `merge_split_lights` | 1 |
 | `optimize_yaw` | 1 |
 | `pixel_noise` | 1 |
 | `q_acc` | 2 |
@@ -39,6 +41,7 @@
 | `r_yaw` | 0.01 |
 | `r_yaw_head_on` | 0.02 |
 | `refine_corners` | 1 |
+| `reject_horizontal_lights` | 1 |
 | `side_angle_deg` | 20 |
 | `singer_tau` | 0.3 |
 | `switch_hysteresis_deg` | 3 |

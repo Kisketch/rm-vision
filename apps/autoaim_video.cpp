@@ -73,7 +73,8 @@ std::string cacheSignature(const std::string& video, const DetectorConfig& d) {
       << d.max_length_ratio << ' ' << d.max_center_y_diff << ' ' << d.min_gap_ratio << ' '
       << d.max_gap_ratio << ' ' << d.min_plate_ratio << ' ' << d.max_plate_ratio << ' '
       << d.large_plate_ratio << ' ' << d.reject_contained_lights << ' ' << d.refine_corners << ' '
-      << d.classify_threshold;
+      << d.classify_threshold << ' ' << d.reject_horizontal_lights << ' '
+      << d.merge_split_lights << ' ' << d.merge_max_gap_ratio;
     for (const auto& name : d.onnx_classes) s << ' ' << name.size() << ':' << name;
     for (const auto& name : d.ignore_classes) s << ' ' << name.size() << ':' << name;
     std::uint64_t h = 14695981039346656037ULL;
@@ -361,7 +362,8 @@ int main(int argc, char** argv) {
             return 1;
         }
     const std::vector<std::string> detector_sweeps = {
-        "refine_corners", "channel_diff_threshold", "diff_adaptive", "diff_k", "diff_min", "diff_max"};
+        "refine_corners", "channel_diff_threshold", "diff_adaptive", "diff_k", "diff_min", "diff_max",
+        "reject_horizontal_lights", "merge_split_lights", "merge_max_gap_ratio"};
     if (std::find(detector_sweeps.begin(), detector_sweeps.end(), sweep_key) != detector_sweeps.end()) {
         std::cerr << sweep_key << " changes detections; use separate --set runs instead of --sweep\n";
         return 1;

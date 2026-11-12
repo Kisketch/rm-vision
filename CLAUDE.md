@@ -22,6 +22,9 @@ ctest --test-dir build --output-on-failure   # 5 项: autoaim_tests / sentry_tes
 ```
 
 - 只构建步兵侧：`-DBUILD_SENTRY=OFF`（只出步兵四个程序和 core 测试）。
+- 在 CPU 配额小于核数的容器里，OpenMP 后端的 OpenCV（如 conda-forge）会因超额线程
+  被节流拖慢约 50 倍：先 `export OMP_NUM_THREADS=<配额>`（看 `/sys/fs/cgroup/cpu.max`）。
+- 改检测器必须 `--redetect` 全新检测：`tools/regression.py` 复用检测缓存。
 - 上车（MVS 相机）：`-DAUTOAIM_WITH_MVS=ON -DMVS_ROOT=/opt/MVS`。
   该分支只用桩 SDK 做过编译验证，真实 SDK 版本/ABI 对齐仍是上车待验项，
   未经真机编译验证前不要断言可用。
@@ -59,6 +62,9 @@ ctest --test-dir build --output-on-failure   # 5 项: autoaim_tests / sentry_tes
   不得生成重复轨迹。
 - AimCommand 含 yaw/pitch rate 前馈（B-01），改火控不要丢字段。
 - Detector 入口有 normalizeFrame 守卫（空帧/灰度/非 8UC3），禁止绕过直接 split 通道。
+- 灯条断裂合并（`merge_split_lights`）必须是**追加式**：并集作额外候选、碎片保留。
+  "用并集替换碎片"已被实测证伪（灯条上方杂光也有亮缝，误伤 6 块正确的板），禁止改回。
+  亮缝判据（缝灰度 ≥ 碎片灰度）是区分过曝芯与地面倒影的依据，不要删。
 - 装甲几何：本仓用板面 0.225×0.055 / 0.135×0.055 m；旧代码的灯条间距
   0.230×0.050 不可混用。
 - 串口协议：MCU 无时间戳，17B 姿态帧只有角度/颜色/buff；位姿时刻 = 主机接收

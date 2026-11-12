@@ -217,3 +217,22 @@ N0 的 3.avi 掉 2.5 pp，所以取 0.05 作为跨口径折中。
 把"variable spin"和"swing"两个角速度阶跃场景拉回 6.4 / 13.0 pp，补回 1.9 pp。
 `q_yaw_walk` 注入的相位方差在干净合成数据上就是噪声，这一点由
 `tests/test_main.cpp::testYawProcessNoiseSplit` 显式记录。
+
+## 12. 灯条断裂修复（2026-11-11）：现行口径重新冻结，N0 不动
+
+`reject_horizontal_lights` + `merge_split_lights`（检测前端，详见
+[`docs/studies/split_light_merge.md`](docs/studies/split_light_merge.md)）。与 Stage K 的
+`q_yaw_walk` 同一约定：结构体默认关，N0 文件一字未改，出厂配置显式打开。
+
+| 口径 | 3.avi robot-EKF | 4.avi robot-EKF | 0.32 s 预测中位 |
+| --- | --- | --- | --- |
+| N0 `video_reference.yaml` | 67.5%（10.6）不变 | 68.6%（10.1）不变 | 14.3 / 13.3 px 不变 |
+| `default.yaml` | **57.3% → 58.1%**（8.8 → 9.1） | 66.9% → 66.9%（8.8） | 15.3→15.2 / 12.4 px |
+
+- 变化来源可逐帧解释：3.avi 末段 14 帧近距离正对板原来整帧漏检（过曝芯把灯条切断），
+  现在检出；其余帧检测输出与修复前逐字节相同。4.avi 全片逐字节相同。
+- `tools/regression.py` 的 `default.yaml` 参考值已更新为上表；N0 参考值不变。两套口径
+  在本机（Linux / GCC 15.3 / OpenCV 4.13.0，conda-forge）均 PASS，+0.0。
+- 本机仿真均值 73.6%；仿真不经过检测器，修复前后 `autoaim_sim` 输出逐字节相同。继续按 §8 只做同机比较。
+- 哨兵上车配置 `sentry.yaml`：robot EKF 3.avi 68.3% → 68.9%，sentry 多目标策略
+  68.4% → 69.0%；4.avi 两行均不变。

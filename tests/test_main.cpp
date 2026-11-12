@@ -11,6 +11,8 @@ int test_failures = 0;
 
 void testDetectorDegenerateInputs();
 void testWindowedDetection();
+void testSplitLightMerge();
+void testHorizontalBlobRejected();
 void testCameraExtrinsic();
 void testAimerOffsets();
 void testBallistics();
@@ -39,6 +41,8 @@ void testConfigTuningRoundTrip();
 int main() {
     testDetectorDegenerateInputs();
     testWindowedDetection();
+    testSplitLightMerge();
+    testHorizontalBlobRejected();
     testCameraExtrinsic();
     testAimerOffsets();
     testBallistics();
