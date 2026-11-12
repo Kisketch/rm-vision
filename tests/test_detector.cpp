@@ -159,3 +159,69 @@ void testKeypointDetector() {
     CHECK(!missing.ok() && missing.detect(black).empty(), "missing model is inert");
     std::printf("keypoint detector: synthetic-tensor postprocess + fallback ok\n");
 }
+
+void testSplitLightMerge() {
+    // Measured on 3.avi frames 1966-2050: at close range a bar's core
+    // saturates to white, R-B collapses there and the mask splits one bar
+    // into a top and a bottom fragment, so the plate failed max_length_ratio.
+    DetectorConfig dc;
+    dc.model_path = "";
+    const cv::Scalar red(30, 30, 230), white(255, 255, 255), dark(8, 8, 8);
+    auto scene = [&](const cv::Scalar& core) {
+        cv::Mat img(600, 800, CV_8UC3, dark);
+        const int cx = 400, cy = 300;
+        // left bar: red 18 px, 16 px core, red 18 px; right bar intact 52 px
+        cv::rectangle(img, cv::Rect(cx - 59, cy - 26, 8, 18), red, -1);
+        cv::rectangle(img, cv::Rect(cx - 59, cy - 8, 8, 16), core, -1);
+        cv::rectangle(img, cv::Rect(cx - 59, cy + 8, 8, 18), red, -1);
+        cv::rectangle(img, cv::Rect(cx + 51, cy - 26, 8, 52), red, -1);
+        return img;
+    };
+    dc.merge_split_lights = false;
+    CHECK(Detector(dc).detect(scene(white)).empty(), "split bar without merge: no plate");
+    dc.merge_split_lights = true;
+    const auto healed = Detector(dc).detect(scene(white));
+    CHECK(healed.size() == 1, "split bar with merge: 1 plate, got %zu", healed.size());
+    if (healed.size() == 1) {
+        const float len = healed[0].left.length;
+        CHECK(std::abs(len - 52.f) < 5.f, "merged bar spans the whole bar: %.1f px", len);
+    }
+    // A dark gap is a bar and its floor reflection, not a saturated core.
+    CHECK(Detector(dc).detect(scene(dark)).empty(), "dark gap stays split");
+
+    // Additive merge: stray light stacked on an intact bar (4.avi frame 654)
+    // must not break the correct pair the bar alone makes.
+    cv::Mat stray(600, 800, CV_8UC3, dark);
+    cv::rectangle(stray, cv::Rect(341, 274, 8, 52), red, -1);
+    cv::rectangle(stray, cv::Rect(451, 274, 8, 52), red, -1);
+    cv::rectangle(stray, cv::Rect(451, 236, 8, 30), red, -1);  // streak above
+    cv::rectangle(stray, cv::Rect(451, 266, 8, 8), white, -1);
+    const auto kept = Detector(dc).detect(stray);
+    CHECK(kept.size() == 1, "stray streak: still 1 plate, got %zu", kept.size());
+    if (kept.size() == 1)
+        CHECK(std::abs(kept[0].right.length - 52.f) < 5.f, "pairs the real bar: %.1f px",
+              kept[0].right.length);
+    std::printf("detector: split-bar merge heals saturated bars, keeps reflections apart\n");
+}
+
+void testHorizontalBlobRejected() {
+    // makeLight measures length top-to-bottom, so a horizontal strip used to
+    // pass as a bar of length = its thickness and veto the plate around it
+    // through reject_contained_lights.
+    DetectorConfig dc;
+    dc.model_path = "";
+    cv::Mat img(600, 800, CV_8UC3, cv::Scalar(8, 8, 8));
+    const cv::Scalar red(30, 30, 230);
+    cv::rectangle(img, cv::Rect(341, 274, 8, 52), red, -1);
+    cv::rectangle(img, cv::Rect(451, 274, 8, 52), red, -1);
+    cv::rectangle(img, cv::Rect(380, 290, 40, 8), red, -1);  // lying-down strip
+    dc.reject_horizontal_lights = false;
+    CHECK(Detector(dc).detect(img).empty(), "old behaviour: strip vetoes the plate");
+    dc.reject_horizontal_lights = true;
+    DetectorDebug dbg;
+    const auto armors = Detector(dc).detect(img, &dbg);
+    CHECK(armors.size() == 1, "strip rejected: plate found, got %zu", armors.size());
+    for (const auto& l : dbg.lights)
+        CHECK(l.length >= l.width, "no lying-down light survives (len %.1f w %.1f)", l.length, l.width);
+    std::printf("detector: horizontal blobs are not light bars\n");
+}

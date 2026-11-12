@@ -42,6 +42,13 @@ validation. On a cache hit it rebuilds the timeline from the frame
 index and evaluation FPS. The timestamps used by this path cannot
 establish the original intervals between hardware captures.
 
+> **Detector version note (2026-11-11).** These caches are the detector
+> output *before* the split-bar merge (`docs/studies/split_light_merge.md`). The
+> frozen N0 config (`core/config/video_reference.yaml`) leaves the merge off,
+> so they still reproduce BASELINE §10 exactly. The shipped configs turn it
+> on: fresh detection then adds 14 frames on 3.avi and is byte-identical on
+> 4.avi.
+
 ## Deduplication (why there is one detections.txt per video, not six)
 
 The working set this directory was imported from held six detection

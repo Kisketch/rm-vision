@@ -193,11 +193,77 @@ std::vector<Light> Detector::findLightsIn(const cv::Mat& bgr, cv::Point offset, 
 
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    std::vector<Light> lights;
-    for (const auto& c : contours) {
+
+    // A blob is one contour, or several merged fragments of the same bar.
+    struct Blob {
+        std::vector<cv::Point> pts;
+        double area;
+        cv::Rect box;
+    };
+    std::vector<Blob> blobs;
+    blobs.reserve(contours.size());
+    for (auto& c : contours) {
         const double area = cv::contourArea(c);
+        // Fragments smaller than a whole bar may still be merged below; a
+        // blob that stays unmerged keeps the original area >= 12 floor.
+        if (area < (cfg_.merge_split_lights ? 4.0 : 12.0)) continue;
+        blobs.push_back({std::move(c), area, cv::Rect()});
+        blobs.back().box = cv::boundingRect(blobs.back().pts);
+    }
+    if (cfg_.merge_split_lights && blobs.size() > 1 && blobs.size() <= 400) {
+        // Two fragments of one vertical bar: stacked (a above b), their x
+        // ranges overlap by at least half the narrower one, similar widths,
+        // and a vertical gap no larger than merge_max_gap_ratio times their
+        // summed heights, and a bright (saturated) gap.
+        const auto meanGray = [&bgr](const cv::Rect& r) {
+            cv::Mat g;
+            cv::cvtColor(bgr(r & cv::Rect(0, 0, bgr.cols, bgr.rows)), g, cv::COLOR_BGR2GRAY);
+            return cv::mean(g)[0];
+        };
+        const auto mergeable = [this, &meanGray](const cv::Rect& a, const cv::Rect& b) {
+            const cv::Rect& up = a.y <= b.y ? a : b;
+            const cv::Rect& dn = a.y <= b.y ? b : a;
+            const int x0 = std::max(up.x, dn.x);
+            const int overlap = std::min(up.x + up.width, dn.x + dn.width) - x0;
+            const int wmin = std::min(up.width, dn.width), wmax = std::max(up.width, dn.width);
+            if (overlap < 0.5 * wmin || wmax > 2 * wmin) return false;
+            const int gap = dn.y - (up.y + up.height);
+            // Overlapping boxes are not stacked fragments of one bar.
+            if (gap < 0) return false;
+            // Each fragment must be at least as tall as wide-ish: horizontal
+            // strips must not grow into "bars" by merging.
+            if (up.height * 2 < up.width || dn.height * 2 < dn.width) return false;
+            if (gap > cfg_.merge_max_gap_ratio * (up.height + dn.height)) return false;
+            if (gap == 0) return true;
+            // The physical signature of a saturation split: the gap is the
+            // white-hot core, at least as bright as the fragments around it.
+            // A bar and its floor reflection have a dark gap and stay apart.
+            const double g_gap = meanGray(cv::Rect(x0, up.y + up.height, overlap, gap));
+            return g_gap >= 0.5 * (meanGray(up) + meanGray(dn));
+        };
+        // Additive: the union is an EXTRA candidate and the fragments stay.
+        // Stray light stacked on a real bar also passes the checks above
+        // (measured: a thin streak over a bar on 4.avi frame 654), and
+        // replacing the fragments then breaks a pair that was correct.
+        // Pairing scores length agreement, so the better reading wins.
+        const std::size_t n = blobs.size();
+        for (std::size_t i = 0; i < n; ++i) {
+            for (std::size_t j = i + 1; j < n; ++j) {
+                if (!mergeable(blobs[i].box, blobs[j].box)) continue;
+                Blob u = blobs[i];
+                u.pts.insert(u.pts.end(), blobs[j].pts.begin(), blobs[j].pts.end());
+                u.area += blobs[j].area;
+                u.box |= blobs[j].box;
+                blobs.push_back(std::move(u));
+            }
+        }
+    }
+
+    std::vector<Light> lights;
+    for (const auto& b : blobs) {
+        const double area = b.area;
         if (area < 12.0) continue;
-        const cv::RotatedRect rect = cv::minAreaRect(c);
+        const cv::RotatedRect rect = cv::minAreaRect(b.pts);
         const float w = rect.size.width, h = rect.size.height;
         if (w < 1.5f || h < 1.5f) continue;
         const float len = std::max(w, h), thick = std::min(w, h);
@@ -207,6 +273,7 @@ std::vector<Light> Detector::findLightsIn(const cv::Mat& bgr, cv::Point offset, 
         if (area / (w * h) < cfg_.min_fill_ratio) continue;
         Light l = makeLight(rect, cfg_.enemy_color);
         if (l.tilt_deg > cfg_.max_light_tilt_deg) continue;
+        if (cfg_.reject_horizontal_lights && l.length < l.width) continue;
         if (offset.x != 0 || offset.y != 0) {
             const cv::Point2f o(static_cast<float>(offset.x), static_cast<float>(offset.y));
             l.rect.center += o;
@@ -230,6 +297,12 @@ bool Detector::containsOtherLight(const Light& a, const Light& b,
     const cv::Rect box = cv::boundingRect(pts);
     for (const auto& l : lights) {
         if (l.center == a.center || l.center == b.center) continue;
+        // With merge_split_lights a merged bar coexists with its own
+        // fragments; a light lying inside one of the pair's bars is that
+        // bar's fragment, not "another light inside the plate".
+        if (cfg_.merge_split_lights &&
+            (a.rect.boundingRect2f().contains(l.center) || b.rect.boundingRect2f().contains(l.center)))
+            continue;
         if (box.contains(l.top) || box.contains(l.bottom) || box.contains(l.center)) return true;
     }
     return false;
@@ -287,6 +360,16 @@ std::vector<ArmorDetection> Detector::matchLights(const std::vector<Light>& ligh
             if (k.left.center == c.det.left.center || k.right.center == c.det.right.center ||
                 k.left.center == c.det.right.center || k.right.center == c.det.left.center)
                 dup = true;
+        // ...and a merged bar and its own fragment are the same physical bar.
+        if (cfg_.merge_split_lights && !dup) {
+            const auto inside = [](const Light& x, const Light& y) {
+                return x.rect.boundingRect2f().contains(y.center) ||
+                       y.rect.boundingRect2f().contains(x.center);
+            };
+            for (const auto& k : out)
+                for (const Light* used : {&k.left, &k.right})
+                    if (inside(*used, c.det.left) || inside(*used, c.det.right)) dup = true;
+        }
         if (dup) continue;
         ArmorDetection d = c.det;
         d.center = center;

@@ -67,6 +67,9 @@ Config Config::load(const std::string& path) {
     get(d, "max_light_aspect", c.detector.max_light_aspect);
     get(d, "min_fill_ratio", c.detector.min_fill_ratio);
     get(d, "max_light_tilt_deg", c.detector.max_light_tilt_deg);
+    get(d, "reject_horizontal_lights", c.detector.reject_horizontal_lights);
+    get(d, "merge_split_lights", c.detector.merge_split_lights);
+    get(d, "merge_max_gap_ratio", c.detector.merge_max_gap_ratio);
     get(d, "max_pair_angle_diff_deg", c.detector.max_pair_angle_diff_deg);
     get(d, "max_length_ratio", c.detector.max_length_ratio);
     get(d, "max_center_y_diff", c.detector.max_center_y_diff);
@@ -292,6 +295,9 @@ bool setParam(Config& c, const std::string& key, double v) {
     else if (key == "max_pose_reproj") c.pose.max_reproj_error_px = v;
     else if (key == "yaw_gain") c.pose.yaw_gain = v;
     else if (key == "refine_corners") c.detector.refine_corners = v != 0;
+    else if (key == "reject_horizontal_lights") c.detector.reject_horizontal_lights = v != 0;
+    else if (key == "merge_split_lights") c.detector.merge_split_lights = v != 0;
+    else if (key == "merge_max_gap_ratio") c.detector.merge_max_gap_ratio = static_cast<float>(v);
     else if (key == "diff_adaptive") c.detector.channel_diff_adaptive = v != 0;
     else if (key == "diff_k") c.detector.channel_diff_k = v;
     else if (key == "diff_min") c.detector.channel_diff_min = v;

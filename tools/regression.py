@@ -31,13 +31,16 @@ from pathlib import Path
 # Frozen references (BASELINE.md sections 10 and 11). Each configuration has its
 # own reference set: the N0 reference config and the shipped live config differ
 # by ~10 pp on the same build, so comparing across them is meaningless.
+# 2026-11-11: default.yaml refrozen for the split-bar merge (BASELINE.md
+# section 12; video 3 gains 14 close-range frames, video 4 is byte-identical).
+# video_reference.yaml is frozen and does not enable the merge.
 REFERENCE_BY_CONFIG = {
     "video_reference.yaml": {
         "3": {"hit": 67.5, "pred_032": 14.3, "hits_per_s": 10.6},
         "4": {"hit": 68.6, "pred_032": 13.3, "hits_per_s": 10.1},
     },
     "default.yaml": {
-        "3": {"hit": 57.3, "pred_032": 15.3, "hits_per_s": 8.8},
+        "3": {"hit": 58.1, "pred_032": 15.2, "hits_per_s": 9.1},
         "4": {"hit": 66.9, "pred_032": 12.4, "hits_per_s": 8.8},
     },
 }

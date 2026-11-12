@@ -40,6 +40,24 @@ struct DetectorConfig {
     float min_light_aspect = 1.6f, max_light_aspect = 12.f;
     float min_fill_ratio = 0.40f;
     float max_light_tilt_deg = 40.f;
+    // makeLight measures length top-to-bottom, so a lying-down blob (a
+    // horizontal light strip) used to pass as a "bar" whose length is its
+    // thickness and whose tilt is 0. Such fake bars can veto real plates
+    // through reject_contained_lights. Rejects blobs with length < width.
+    // Struct defaults keep the pre-2026-11-11 behaviour so the frozen N0
+    // file (core/config/video_reference.yaml) stays byte-for-byte comparable;
+    // the shipped configs (core/ and sentry/ yaml) switch both on.
+    bool reject_horizontal_lights = false;
+    // An over-exposed bar core saturates all channels, so R-B collapses there
+    // and the mask can split one bar into a top and a bottom fragment; the
+    // fragments then fail max_length_ratio against the intact partner bar.
+    // Adds the union of two vertically stacked fragments (x overlap, similar
+    // width, gap <= merge_max_gap_ratio * summed heights, gap at least as
+    // bright as the fragments) as an extra bar candidate; the fragments are
+    // kept, the union must pass every bar filter, and pairing keeps whichever
+    // reading matches its partner best. See docs/studies/split_light_merge.md.
+    bool merge_split_lights = false;
+    float merge_max_gap_ratio = 0.5f;
     // light pairing
     float max_pair_angle_diff_deg = 12.f;
     float max_length_ratio = 1.7f;
