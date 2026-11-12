@@ -37,10 +37,9 @@
   始终知道下一块板在哪。在两段参考视频上，整车 EKF 的虚拟射击命中率是
   **67.6% / 68.6%**，逐板卡尔曼滤波只有 **29.6% / 43.1%**。
 - **跑在哪里。** 步兵与英雄把共享核心当库使用；哨兵在此之上加了多目标管理、
-  与 MCU 的串口链路和跟踪引导的 ROI 检测。本系统在 RoboMaster 竞赛机器人上
-  开发与验证；共享核心与平台无关，可迁移到其他机器人平台。
-- **数字可以自己验。** 每一个标题数字都能用本仓库和它的 Release 数据重新算出来；
-  回归门禁（`tools/regression.py`）会拒绝任何让数字变差的改动。
+  与 MCU 的串口链路和跟踪引导的 ROI 检测。此版本公开的验证结果来自离线视频与仿真。
+- **数字可以自己验。** 运行下方的回归命令，可以把指定的视频与仿真指标同冻结基线比较。
+  判定采用各指标的容差，详见 [BASELINE.md](BASELINE.md)。
 
 ![真实视频上的策略阶梯](docs/charts/strategy_ceiling.svg)
 
@@ -57,7 +56,7 @@ Linux、CMake ≥ 3.16、C++17 编译器、OpenCV 4。构建、跑测试，然�
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-ctest --test-dir build --output-on-failure          # 5 项，必须全过
+(cd build && ctest --output-on-failure)          # 5 项，必须全过
 gh release download data-v1-2026-11-09 --repo Kisketch/robot-vision-aim -D ./video
 cat video/4.avi.part-00 video/4.avi.part-01 > video/4.avi
 python3 tools/regression.py --exe build/apps/autoaim_video   # 冻结参考口径
@@ -569,7 +568,7 @@ videoio、highgui、calib3d、dnn）。构建不接受 OpenCV 5。
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-ctest --test-dir build --output-on-failure     # 5 entries: core / sentry / serial / gate contract / headers
+(cd build && ctest --output-on-failure)     # 5 entries: core / sentry / serial / gate contract / headers
 ./build/apps/autoaim_sim                       # simulator table (see BASELINE.md)
 ./build/apps/autoaim_video <video.avi>         # offline evaluation on a recording
 ./build/sentry/sentry_robot --help             # sentry on-robot program

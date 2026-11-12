@@ -41,12 +41,9 @@
   per-plate Kalman filter.
 - **Where it runs.** Infantry and hero robots use the shared core as a
   library; the sentry adds multi-target management, a serial link to the
-  MCU and tracking-guided ROI detection. Developed and validated on
-  RoboMaster competition robots; the shared core is platform-independent
-  and reusable on other robot platforms.
-- **Why you can check it.** Every headline number can be regenerated from
-  this repository and its release data, and the regression gate
-  (`tools/regression.py`) fails any change that makes one worse.
+  MCU and tracking-guided ROI detection. The repository reports offline video and simulation results for this version.
+- **Why you can check it.** The manual regression command below checks selected video and
+  simulation metrics against frozen references with documented tolerances. See [BASELINE.md](BASELINE.md).
 
 ![Strategy ladder on real video](docs/charts/strategy_ceiling.svg)
 
@@ -67,7 +64,7 @@ regression gate does:
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-ctest --test-dir build --output-on-failure          # 5 suites, all must pass
+(cd build && ctest --output-on-failure)          # 5 suites, all must pass
 gh release download data-v1-2026-11-09 --repo Kisketch/robot-vision-aim -D ./video
 cat video/4.avi.part-00 video/4.avi.part-01 > video/4.avi
 python3 tools/regression.py --exe build/apps/autoaim_video   # frozen reference config
@@ -707,7 +704,7 @@ the build.
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-ctest --test-dir build --output-on-failure     # 5 entries: core / sentry / serial / gate contract / headers
+(cd build && ctest --output-on-failure)     # 5 entries: core / sentry / serial / gate contract / headers
 ./build/apps/autoaim_sim                       # simulator table (see BASELINE.md)
 ./build/apps/autoaim_video <video.avi>         # offline evaluation on a recording
 ./build/sentry/sentry_robot --help             # sentry on-robot program

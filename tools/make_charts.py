@@ -7,6 +7,7 @@ moves, update the data here and re-run:  python3 tools/make_charts.py
 Pure stdlib; the SVGs are text so they diff and render on GitHub.
 """
 import os
+from pathlib import Path
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "docs", "charts")
 
@@ -42,14 +43,31 @@ def y_axis(p, x0, y0, y1, vmax, ticks, unit=""):
 
 # ---------------------------------------------------------------- hit rates
 def hit_rates():
-    series = [  # (label, colour, 3.avi, 4.avi) — BASELINE.md / MEASUREMENTS.md
-        ("N0 reference, conditional", BLUE, 67.5, 68.6),
-        ("N0 reference, conservative", "#93c5fd", 65.1, 67.1),
-        ("Live config, conditional", TEAL, 58.1, 66.9),
-        ("Live config, conservative", "#2dd4bf", 56.5, 65.3),
-        ("Sentry config, conditional", AMBER, 67.6, 71.9),
-        ("Point KF, conditional", RED, 29.6, 43.1),
-    ]
+    source = Path(__file__).resolve().parents[1] / "docs/performance_charts.md"
+    header = "| 配置 | 3.avi 条件 | 3.avi 保守 | 4.avi 条件 | 4.avi 保守 |"
+    lines = source.read_text(encoding="utf-8").splitlines()
+    if lines.count(header) != 1:
+        raise ValueError(f"{source}: expected exactly one configuration table")
+    rows = {}
+    for line in lines[lines.index(header) + 2:]:
+        if not line.startswith("|"):
+            break
+        name, *values = [cell.strip() for cell in line.strip("|").split("|")]
+        if name in rows or len(values) != 4:
+            raise ValueError(f"{source}: invalid configuration row: {line}")
+        rows[name] = values
+
+    series = []
+    for label, colour, name, column in [
+        ("N0 reference, conditional", BLUE, "robot EKF · 参考口径", 0),
+        ("N0 reference, conservative", "#93c5fd", "robot EKF · 参考口径", 1),
+        ("Live config, conditional", TEAL, "robot EKF · 出厂口径", 0),
+        ("Live config, conservative", "#2dd4bf", "robot EKF · 出厂口径", 1),
+        ("Sentry config, conditional", AMBER, "哨兵配置", 0),
+        ("Point KF, conditional", RED, "point KF · 参考口径", 0),
+    ]:
+        values = rows[name]
+        series.append((label, colour, float(values[column]), float(values[column + 2])))
     W, H, x0, y0, y1, vmax = 920, 540, 70, 76, 428, 80.0
     p = open_svg(W, H, "Hit rate by evaluation configuration (%)",
                  "Offline video evaluation; conditional = hits / verifiable shots, conservative = hits / all shots. The videos were not shot with the team camera (live config).")
