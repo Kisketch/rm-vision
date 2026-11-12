@@ -13,6 +13,8 @@
 
 #include <opencv2/core.hpp>
 
+#include <string>
+
 #include "autoaim/ballistics.hpp"
 #include "autoaim/config.hpp"
 #include "autoaim/tracker.hpp"
@@ -73,9 +75,9 @@ private:
 class RobotAimer {
 public:
     RobotAimer(const AimerConfig& cfg, const Ballistics& ballistics) : cfg_(cfg), ball_(ballistics) {}
-    AimCommand aim(const RobotTracker& tracker, double now) const;
+    AimCommand aim(const RobotTracker& tracker, double now);
     // Tracker-independent interface used by the sentry pipeline and the outpost.
-    AimCommand aim(const TargetState& target, double now) const;
+    AimCommand aim(const TargetState& target, double now);
     int selectArmor(const TargetState& target, double t, int previous, double& facing) const;
 
 private:
@@ -83,20 +85,20 @@ private:
                     double& facing) const;
     AimerConfig cfg_;
     Ballistics ball_;  // by value: a reference member dangles if the caller passes a temporary
-    mutable int last_armor_ = -1;  // plate chosen last frame, for switch hysteresis
-    mutable std::string last_id_;  // tracker id the hysteresis state belongs to
-    mutable CommandRate rate_;     // B-01 feedforward state, same lifetime as last_id_
+    int last_armor_ = -1;  // plate chosen last frame, for switch hysteresis (aim() is stateful: not const)
+    std::string last_id_;  // tracker id the hysteresis state belongs to
+    CommandRate rate_;     // B-01 feedforward state, same lifetime as last_id_
 };
 
 class PointAimer {
 public:
     PointAimer(const AimerConfig& cfg, const Ballistics& ballistics) : cfg_(cfg), ball_(ballistics) {}
-    AimCommand aim(const PointTracker& tracker, double now) const;
+    AimCommand aim(const PointTracker& tracker, double now);
 
 private:
     AimerConfig cfg_;
     Ballistics ball_;  // by value: a reference member dangles if the caller passes a temporary
-    mutable CommandRate rate_;
+    CommandRate rate_;
 };
 
 class DirectAimer {

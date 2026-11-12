@@ -301,7 +301,7 @@ bool setParam(Config& c, const std::string& key, double v) {
     return true;
 }
 
-void Config::save(const std::string& path) const {
+void Config::saveTuningOverrides(const std::string& path) const {
     cv::FileStorage fs(path, cv::FileStorage::WRITE);
     fs << "camera" << "{"
        << "fx" << camera.fx << "fy" << camera.fy << "cx" << camera.cx << "cy" << camera.cy

@@ -16,7 +16,7 @@ C++17 / CMake / OpenCV 4。规则以 2026 赛季为准，2027 仅作前瞻。
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-ctest --test-dir build --output-on-failure   # 3 套: autoaim_tests / sentry_tests / serial_port_tests
+ctest --test-dir build --output-on-failure   # 5 项: autoaim_tests / sentry_tests / serial_port_tests / regression_gate_contract / header_self_containment
 ./build/apps/autoaim_sim                     # 仿真表必须与 BASELINE.md 一致/可解释
 ./build/sentry/sentry_robot --help           # 哨兵上车程序冒烟
 ```

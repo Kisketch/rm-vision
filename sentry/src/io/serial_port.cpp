@@ -1,4 +1,4 @@
-#include "io/serial_port.hpp"
+#include "sentry/io/serial_port.hpp"
 
 #include <fcntl.h>
 #include <poll.h>
@@ -12,7 +12,7 @@
 #include <cstring>
 #include <iostream>
 
-namespace io {
+namespace sentry::io {
 namespace {
 
 speed_t baudToSpeed(int baud) {
@@ -263,4 +263,4 @@ bool SerialPort::query(double stamp, sentry::AttitudeFrame& out) {
     return true;
 }
 
-}  // namespace io
+}  // namespace sentry::io

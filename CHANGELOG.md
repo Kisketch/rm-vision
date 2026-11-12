@@ -1,5 +1,9 @@
 # 更新日志
 
+> 范围说明：本文件早期条目继承自 rm-sentry-integration 的哨兵变更史，
+> 合并后也记录全仓级变更，但不追求完整——全仓变更以 git 提交历史与
+> docs/ 下各轮审查文档（如 docs/engineering_review_r6.md）为准。
+
 ## 2026-11-11 — 赛场条件压力测试与评测器帧率解耦
 
 新增 `autoaim_video --stress`（`dropout` / `framedrop` / `decimate` / `jitter_ms` /

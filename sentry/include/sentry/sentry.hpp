@@ -12,7 +12,7 @@
 #include "autoaim/config.hpp"
 #include "autoaim/detector.hpp"
 #include "autoaim/pose.hpp"
-#include "autoaim/target.hpp"
+#include "sentry/target_manager.hpp"
 #include "autoaim/tracker.hpp"
 #include "autoaim/types.hpp"
 #include "sentry/roi.hpp"
@@ -30,8 +30,9 @@ struct SentryOutput {
 class SentryVision {
 public:
     explicit SentryVision(const autoaim::Config& cfg);
-    // Members hold references to sibling members (pose_ and manager_ ->
-    // camera_, aimer_ -> ballistics_): a copy or move would dangle.
+    // Members hold references to a sibling member (pose_ and manager_
+    // hold camera_ by reference): a copy or move would dangle. (aimer_
+    // holds its Ballistics by value, so it is not part of this web.)
     SentryVision(const SentryVision&) = delete;
     SentryVision& operator=(const SentryVision&) = delete;
 
@@ -57,7 +58,6 @@ public:
     const std::vector<cv::Rect>& roiWindows() const { return roi_windows_; }
     void reset() { manager_.reset(); }
     const autoaim::Config& config() const { return cfg_; }
-    autoaim::Config& mutableConfig() { return cfg_; }
     const autoaim::CameraModel& camera() const { return camera_; }
     const autoaim::Detector& detector() const { return detector_; }
 
@@ -67,7 +67,7 @@ private:
     autoaim::CameraModel camera_;
     autoaim::PoseSolver pose_;
     autoaim::Ballistics ballistics_;
-    autoaim::TargetManager manager_;
+    TargetManager manager_;
     autoaim::RobotAimer aimer_;
     bool roi_enabled_ = false;
     std::vector<cv::Rect> roi_windows_;

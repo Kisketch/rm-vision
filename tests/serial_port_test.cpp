@@ -1,4 +1,4 @@
-// End-to-end test of io::SerialPort over a PTY pair: attitude bytes in,
+// End-to-end test of sentry::io::SerialPort over a PTY pair: attitude bytes in,
 // SLERP-interpolated attitude out.  Verifies the wiring the G-02 alignment
 // depends on - parser scale and roll offset, receipt-time stamping, bracketing
 // and gap rejection - without serial hardware.  Linux-only, like the class.
@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <thread>
 
-#include "io/serial_port.hpp"
+#include "sentry/io/serial_port.hpp"
 
 namespace {
 
@@ -72,7 +72,7 @@ int main() {
         return 0;
     }
 
-    io::SerialPort port(name, 115200, /*stamp_delay_s=*/0.0, /*max_gap_s=*/0.25);
+    sentry::io::SerialPort port(name, 115200, /*stamp_delay_s=*/0.0, /*max_gap_s=*/0.25);
     CHECK(port.ok(), "serial port opened on %s", name);
 
     // Constant spin at 2 rad/s, constant pitch/roll, frames 150 ms apart.
@@ -125,7 +125,7 @@ int main() {
         int m2 = -1, s2 = -1;
         char name2[128] = {0};
         if (openpty(&m2, &s2, name2, nullptr, nullptr) == 0) {
-            io::SerialPort port2(name2, 115200, 0.0, /*max_gap_s=*/0.25, false, /*max_extrap_s=*/0.5);
+            sentry::io::SerialPort port2(name2, 115200, 0.0, /*max_gap_s=*/0.25, false, /*max_extrap_s=*/0.5);
             CHECK(port2.ok(), "second port opened");
             const double yaw_deg = 68877 / 10000.0;  // raw 0x00010D0D
             const double yaw = yaw_deg * 3.14159265358979323846 / 180.0;

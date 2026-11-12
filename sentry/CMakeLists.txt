@@ -11,6 +11,7 @@ if (UNIX AND NOT APPLE)
 endif()
 target_include_directories(autoaim_sentry PUBLIC include)
 target_link_libraries(autoaim_sentry PUBLIC autoaim_core)
+add_library(autoaim::sentry ALIAS autoaim_sentry)
 target_compile_definitions(autoaim_sentry PUBLIC AUTOAIM_WITH_SENTRY
                            SENTRY_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 

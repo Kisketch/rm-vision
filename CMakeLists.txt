@@ -15,13 +15,20 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(BUILD_SENTRY "Build the sentry module and its apps" ON)
+option(BUILD_APPS "Build the offline applications" ON)
 
 find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs videoio highgui calib3d dnn)
 
-enable_testing()
+# BUILD_TESTING comes from CTest (default ON): -DBUILD_TESTING=OFF skips
+# the test targets entirely.
+include(CTest)
 add_subdirectory(core)
-add_subdirectory(apps)
+if (BUILD_APPS)
+    add_subdirectory(apps)
+endif()
 if (BUILD_SENTRY)
     add_subdirectory(sentry)
 endif()
-add_subdirectory(tests)
+if (BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

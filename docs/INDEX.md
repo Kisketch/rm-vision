@@ -35,15 +35,16 @@
 | `sentry/config/` | 2 | `sentry.yaml`（哨兵参数）、`default.yaml`（哨兵风味默认） |
 | `sentry/tools/`（含 `legacy_include/`） | 6 | 旧代码对比台架（与 legacy/ 对照用，非产品构建） |
 | `apps/` | 5 | 步兵侧程序：`autoaim_video`（离线评测）、`autoaim_sim`（仿真）、`autoaim_lights`、`detector_bench` + CMake |
-| `tests/` | 7 | 三套 CTest：core/哨兵/串口，另有缓存集成、视频对齐测试、回归门契约测试（test_regression_gate.py）与 CMake |
+| `tests/` | 17 | CTest 五项：core 套件（test_main 入口 + 按模块拆分的八个测试文件 + check.hpp/fixtures.hpp）、哨兵、串口、回归门契约（test_regression_gate.py 已注册为 CTest）、头文件自包含；另有缓存集成与视频对齐脚本测试 |
 
 ## 文档与报告
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `docs/` | 69 | 全部设计/审查/调参文档（见下方 docs 分类表） |
+| `docs/` | 73 | 全部设计/审查/调参文档（见下方 docs 分类表） |
 | `docs/charts/` | 17 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
 | `docs/assets/` | 1 | 仓库标志 logo.svg（README 顶部居中展示） |
+| `docs/decisions/` | 3 | 架构决策记录 ADR-001 共享核心 / ADR-002 整车 EKF / ADR-003 CameraSource 与曝光戳 |
 | `docs/detections/` | 9 | 检测效果样例图/视频（说明用） |
 | `reports/` | 3 | 仿真与真视频汇总报告（sim_report 由 UTF-16 转码为 UTF-8，文本不变） |
 | `reports/real_video_regression/` | 9 | 真视频回归分项报告（N0/N1/弹速/标定四组 × 两视频 + 总报告） |
@@ -55,6 +56,10 @@
 - **审查与加固**：full_audit_2026-11、review_2026-11、review_2026-11_round2、
   review_response、core_hardening_port、hardening、code_review_improvements、
   REVIEW_UPDATE_2026-11-10、POSE_ASSOCIATION_DIAGNOSTICS_2026-11-10、
+  engineering_review_r6（第六轮工程化审查处置：命名空间归属、
+  const 语义、mutableConfig 删除、save 改名、CameraSource PImpl、CMake
+  开关与别名目标、测试拆分、回归门进 CTest、头文件自包含检查，及
+  install/文档分层等缓办项的理由）、
   code_review_fixes_r3（第三轮源码级审查的九项处置：预测协方差补过程噪声并附
   门控 A/B、迭代收敛判定与普查、Yaw NIS 帧聚合、过期观测拒绝、PnP 误差回退、
   MVS 频率/读回/超时三修、贪心关联按实测标准暂缓）、
@@ -113,7 +118,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 345 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 363 个（`git ls-files`）；迁移审计的 269 个是历史快照。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。

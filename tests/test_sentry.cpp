@@ -14,7 +14,7 @@
 #include "autoaim/delay_calibration.hpp"
 #include "autoaim/pose.hpp"
 #include "autoaim/pose_buffer.hpp"
-#include "autoaim/target.hpp"
+#include "sentry/target_manager.hpp"
 #include "autoaim/tracker.hpp"
 #include "sentry/roi.hpp"
 #include "sentry/serial_protocol.hpp"
@@ -142,7 +142,7 @@ void testTargetManager() {
     tg.association_gate = 1.0;
     tg.require_tracking = false;
     tg.priority = {"4", "3"};
-    autoaim::TargetManager mgr(tc, tg, cam);
+    sentry::TargetManager mgr(tc, tg, cam);
 
     for (int n = 0; n < 40; ++n) {
         const double t = n * 0.04;
@@ -329,7 +329,7 @@ void testTargetManagerIdentity() {
 
     // (a) Same number, different colours -> two robots, two tracks.
     {
-        autoaim::TargetManager mgr(tc, tg, cam);
+        sentry::TargetManager mgr(tc, tg, cam);
         for (int n = 0; n < 20; ++n) {
             autoaim::FrameObservations f;
             f.frame = n, f.stamp = n * 0.04;
@@ -345,7 +345,7 @@ void testTargetManagerIdentity() {
     // (b) A one-frame outlier with the same identity (a misread digit 2 m
     // away) must neither spawn a duplicate track nor knock the real one out.
     {
-        autoaim::TargetManager mgr(tc, tg, cam);
+        sentry::TargetManager mgr(tc, tg, cam);
         for (int n = 0; n < 30; ++n) {
             autoaim::FrameObservations f;
             f.frame = n, f.stamp = n * 0.04;
@@ -364,7 +364,7 @@ void testTargetManagerIdentity() {
     // there): the single track must re-seed and be TRACKING again quickly,
     // still with exactly one track for the identity.
     {
-        autoaim::TargetManager mgr(tc, tg, cam);
+        sentry::TargetManager mgr(tc, tg, cam);
         int recovered_at = -1;
         for (int n = 0; n < 40; ++n) {
             autoaim::FrameObservations f;
@@ -391,7 +391,7 @@ void testSelectHysteresisEligibility() {
     tg.require_tracking = true;
     tg.switch_margin = 0.5;
     tg.priority = {};
-    autoaim::TargetManager mgr(tc, tg, cam);
+    sentry::TargetManager mgr(tc, tg, cam);
     auto mk = [](const std::string& id, double x, autoaim::TrackState st) {
         autoaim::TargetState s;
         s.valid = true, s.id = id, s.label = id, s.state = st, s.armors_num = 4;

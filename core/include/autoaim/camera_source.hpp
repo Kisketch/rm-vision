@@ -49,7 +49,9 @@ private:
     std::string path_;
     double fps_ = 0.0;
     std::uint64_t index_ = 0;
-    void* cap_ = nullptr;  // cv::VideoCapture, hidden to keep videoio out of this header
+    class Impl;
+    std::unique_ptr<Impl> impl_;  // owns the cv::VideoCapture (PImpl: keeps
+                                  // videoio out of this header, no void*)
 };
 
 // Live UVC / V4L2 device through cv::VideoCapture. The stamp is the host
@@ -70,7 +72,8 @@ public:
 private:
     double fps_ = 0.0;
     std::uint64_t index_ = 0;
-    void* cap_ = nullptr;  // cv::VideoCapture
+    class Impl;
+    std::unique_ptr<Impl> impl_;  // owns the cv::VideoCapture (PImpl)
 };
 
 #ifdef AUTOAIM_WITH_MVS

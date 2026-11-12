@@ -1,0 +1,15 @@
+# rm-vision code style baseline (round 6).  Matches the existing code:
+# 4-space indent, braces on the declaration line, 100-column soft limit,
+# pointers/references bound to the type.  Not yet enforced in CI - the
+# codebase predates the file; enforcement waits for a formatting baseline
+# pass so the check does not drown real changes in reformat noise.
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Attach
+PointerAlignment: Left
+ReferenceAlignment: Left
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Inline
+SortIncludes: Never

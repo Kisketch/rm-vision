@@ -12,6 +12,7 @@
 #include <opencv2/core.hpp>
 
 #include <vector>
+#include <array>
 #include <limits>
 
 #include "autoaim/config.hpp"

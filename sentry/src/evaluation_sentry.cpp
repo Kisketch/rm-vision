@@ -6,7 +6,7 @@
 
 #include "autoaim/aimer.hpp"
 #include "autoaim/ballistics.hpp"
-#include "autoaim/target.hpp"
+#include "sentry/target_manager.hpp"
 
 namespace autoaim {
 namespace {
@@ -30,7 +30,7 @@ void appendSentryStrategy(const Config& cfg, const std::vector<FrameObservations
     const double fps = cfg.eval.fps;
     const double dt = 1.0 / fps;
     Ballistics ball(cfg.ballistic);
-    TargetManager manager(cfg.tracker, cfg.target, camera);
+    sentry::TargetManager manager(cfg.tracker, cfg.target, camera);
     RobotAimer sentry_aimer(cfg.aimer, ball);
     GimbalSim g_sentry(cfg.aimer.gimbal_tau, cfg.aimer.gimbal_max_rate, cfg.aimer.gimbal_ff);
     ShotJudge video_judge(obs, camera, ball, fps);

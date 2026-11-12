@@ -18,28 +18,27 @@ double steadySeconds() {
     return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-cv::VideoCapture& capOf(void* p) { return *static_cast<cv::VideoCapture*>(p); }
-
 }  // namespace
 
 // ---------------------------------------------------------------- VideoFile
 
-VideoFileSource::VideoFileSource(const std::string& path) : path_(path) {
-    auto* cap = new cv::VideoCapture(path);
-    if (!cap->isOpened()) {
-        delete cap;
-        throw std::runtime_error("cannot open video " + path);
-    }
-    cap_ = cap;
-    fps_ = cap->get(cv::CAP_PROP_FPS);
+struct VideoFileSource::Impl {
+    explicit Impl(const std::string& path) : cap(path) {}
+    cv::VideoCapture cap;
+};
+
+VideoFileSource::VideoFileSource(const std::string& path)
+    : path_(path), impl_(std::make_unique<Impl>(path)) {
+    if (!impl_->cap.isOpened()) throw std::runtime_error("cannot open video " + path);
+    fps_ = impl_->cap.get(cv::CAP_PROP_FPS);
     if (!(fps_ > 0) || fps_ > 1000) fps_ = 25.0;
 }
 
-VideoFileSource::~VideoFileSource() { delete static_cast<cv::VideoCapture*>(cap_); }
+VideoFileSource::~VideoFileSource() = default;
 
 bool VideoFileSource::grab(SourceFrame& out) {
     cv::Mat frame;
-    if (!capOf(cap_).read(frame)) return false;
+    if (!impl_->cap.read(frame)) return false;
     out.image = frame;
     out.exposure_stamp = index_ / fps_;
     out.index = index_++;
@@ -49,24 +48,25 @@ bool VideoFileSource::grab(SourceFrame& out) {
 
 // ------------------------------------------------------------------- Device
 
-DeviceSource::DeviceSource(int index, double nominal_fps, int width, int height) {
-    auto* cap = new cv::VideoCapture(index, cv::CAP_V4L2);
-    if (!cap->isOpened()) {
-        delete cap;
-        throw std::runtime_error("cannot open camera device");
-    }
-    if (width > 0) cap->set(cv::CAP_PROP_FRAME_WIDTH, width);
-    if (height > 0) cap->set(cv::CAP_PROP_FRAME_HEIGHT, height);
-    cap_ = cap;
-    fps_ = nominal_fps > 0 ? nominal_fps : cap->get(cv::CAP_PROP_FPS);
+struct DeviceSource::Impl {
+    explicit Impl(int index) : cap(index, cv::CAP_V4L2) {}
+    cv::VideoCapture cap;
+};
+
+DeviceSource::DeviceSource(int index, double nominal_fps, int width, int height)
+    : impl_(std::make_unique<Impl>(index)) {
+    if (!impl_->cap.isOpened()) throw std::runtime_error("cannot open camera device");
+    if (width > 0) impl_->cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
+    if (height > 0) impl_->cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
+    fps_ = nominal_fps > 0 ? nominal_fps : impl_->cap.get(cv::CAP_PROP_FPS);
     if (!(fps_ > 0) || fps_ > 1000) fps_ = 30.0;
 }
 
-DeviceSource::~DeviceSource() { delete static_cast<cv::VideoCapture*>(cap_); }
+DeviceSource::~DeviceSource() = default;
 
 bool DeviceSource::grab(SourceFrame& out) {
     cv::Mat frame;
-    if (!capOf(cap_).read(frame)) return false;
+    if (!impl_->cap.read(frame)) return false;
     // Receipt time minus half a frame period approximates the exposure
     // centre of a free-running UVC camera. Jitter is milliseconds, not the
     // 0.3 ms of the G-02 budget - hw_stamp stays false so nothing downstream

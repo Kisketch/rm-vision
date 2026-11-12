@@ -41,17 +41,17 @@ ctest --test-dir build        # 三套单元/集成测试
 
 源码对照：[MVS 默认配置](../core/include/autoaim/camera_source.hpp)、[MVS 与 V4L2 采集](../core/src/camera_source.cpp)、[旧版海康初始化](../legacy/io/src/hikrobot.cpp)。
 
-## 全仓目录（2026-11-11 校验，345 个跟踪文件）
+## 全仓目录（2026-11-11 校验，363 个跟踪文件）
 
 | 目录 | 文件数 | 内容 |
 |---|---|---|
 | `core/` | 30 | 共享算法库：检测、PnP、整车 EKF、弹道、开火控制、相机源、姿态缓冲、延迟标定 |
 | `sentry/` | 23 | 哨兵模块：库、主程序、串口、配置、旧代码对比台架（`sentry/tools/`，非产品构建） |
 | `apps/` | 5 | 离线程序：`autoaim_video`（评测）、`autoaim_sim`（仿真）、`autoaim_lights`、`detector_bench` |
-| `tests/` | 7 | 三套 CTest：core / 哨兵 / 串口，另有回归门契约测试 |
-| `docs/` | 98 | 69 篇设计/审查/研究文档（见 `docs/INDEX.md` 分类表）+ 设计档案页 + 样例媒体 + 数据图表 17 + 仓库标志 1 |
+| `tests/` | 17 | CTest 五项：core（按模块拆分）/ 哨兵 / 串口 / 回归门契约 / 头文件自包含 |
+| `docs/` | 102 | 73 篇设计/审查/研究文档（见 `docs/INDEX.md` 分类表）+ 设计档案页 + 样例媒体 + 数据图表 17 + 仓库标志 1 + 决策记录 3（已计入 73 篇） |
 | `data/` | 39 | 离线评测缓存（双视频检测缓存与分项结果） |
-| `tools/` | 39 | 回归门禁与离线评测脚本（含图表生成 make_charts.py） |
+| `tools/` | 40 | 回归门禁与离线评测脚本（含图表生成 make_charts.py） |
 | `reports/` | 12 | 汇总报告 + 真视频回归分项报告 |
 | `legacy/` | 65 | 上一代上车程序（auto-aim-master）原样存档，**不参与构建、不要部署** |
 | `archive/` | 8 | 历史快照存档 |

@@ -231,7 +231,12 @@ struct Config {
     // silently wrong geometry deep in the pipeline.  Returns one message per
     // problem; empty means valid.
     std::vector<std::string> validate() const;
-    void save(const std::string& path) const;
+    // Persists ONLY the tuning subset (camera / tracker / aimer) that the
+    // offline tuning tools adjust; it is NOT a full serialization of
+    // this Config (detector, pose, target, ballistics and evaluation
+    // fields are not written). Named accordingly - the old name save()
+    // promised a completeness it never had.
+    void saveTuningOverrides(const std::string& path) const;
 };
 
 // Command-line override of a named parameter (see config.cpp for the names).

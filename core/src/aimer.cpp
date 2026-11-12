@@ -125,7 +125,7 @@ int RobotAimer::selectArmor(const RobotTracker& t, const RobotTracker::Vec& x, i
     return best;
 }
 
-AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) const {
+AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) {
     AimCommand cmd;
     if (!tracker.active()) {
         last_armor_ = -1;
@@ -223,7 +223,7 @@ AimCommand RobotAimer::aim(const RobotTracker& tracker, double now) const {
 
 // ------------------------------------------------------------------ point KF
 
-AimCommand PointAimer::aim(const PointTracker& tracker, double now) const {
+AimCommand PointAimer::aim(const PointTracker& tracker, double now) {
     AimCommand cmd;
     if (!tracker.active()) {
         rate_.reset();
@@ -297,7 +297,7 @@ int RobotAimer::selectArmor(const TargetState& target, double t, int previous,
     return best;
 }
 
-AimCommand RobotAimer::aim(const TargetState& target, double now) const {
+AimCommand RobotAimer::aim(const TargetState& target, double now) {
     AimCommand cmd;
     if (target.state == TrackState::LOST) {
         last_armor_ = -1;

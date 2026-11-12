@@ -1,0 +1,9 @@
+# Advisory static-analysis baseline (round 6).  Run manually with
+# clang-tidy -p build <file>; not yet a CI gate.
+Checks: >
+  bugprone-*,
+  performance-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions
+WarningsAsErrors: ''
+HeaderFilterRegex: '(core|sentry)/include/'

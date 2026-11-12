@@ -16,7 +16,7 @@
 //             --calib-delay use a live source, not a file.
 //
 // Attitude timing (G-02): the gimbal attitude is SLERP-interpolated at
-// the frame's exposure stamp by io::SerialPort.  When no attitude
+// the frame's exposure stamp by sentry::io::SerialPort.  When no attitude
 // brackets the stamp the frame is skipped (never processed with a
 // stale or zero attitude) and counted in the summary line.
 //
@@ -47,7 +47,7 @@
 #include "autoaim/config.hpp"
 #include "autoaim/delay_calibration.hpp"
 #include "autoaim/pose_buffer.hpp"
-#include "io/serial_port.hpp"
+#include "sentry/io/serial_port.hpp"
 #include "sentry/sentry.hpp"
 #include "sentry/serial_protocol.hpp"
 
@@ -145,9 +145,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::unique_ptr<io::SerialPort> serial;
+    std::unique_ptr<sentry::io::SerialPort> serial;
     if (!serial_device.empty())
-        serial = std::make_unique<io::SerialPort>(serial_device, 115200, stamp_delay_ms / 1000.0,
+        serial = std::make_unique<sentry::io::SerialPort>(serial_device, 115200, stamp_delay_ms / 1000.0,
                                                   max_gap_ms / 1000.0, require_crc,
                                                   max_extrap_ms / 1000.0);
 

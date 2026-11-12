@@ -1,11 +1,13 @@
-#include "autoaim/target.hpp"
+#include "sentry/target_manager.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <map>
 
-namespace autoaim {
+namespace sentry {
+
+using namespace autoaim;  // core types (TrackerConfig, TargetState, ...)
 
 namespace {
 // Matching identity of an entry: the outpost is a singleton, robots are
@@ -130,7 +132,7 @@ bool TargetManager::eligible(const TargetState& s) const {
     return cv::norm(s.center) <= target_cfg_.max_distance;
 }
 
-int TargetManager::select(const std::vector<TargetState>& states) const {
+int TargetManager::select(const std::vector<TargetState>& states) {
     int best = -1;
     double best_distance = std::numeric_limits<double>::max();
     int best_priority = std::numeric_limits<int>::max();
@@ -166,4 +168,4 @@ void TargetManager::reset() {
     last_selected_id_.clear();
 }
 
-}  // namespace autoaim
+}  // namespace sentry
