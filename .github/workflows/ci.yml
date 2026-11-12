@@ -46,6 +46,7 @@ jobs:
           python3 tools/make_charts.py
           python3 tools/make_diagrams.py
           git diff --exit-code -- docs/charts docs/diagrams
+          test -z "$(git ls-files --others --exclude-standard -- docs/charts docs/diagrams)"
 
       - name: Detection cache integration
         run: /usr/bin/python3 tests/test_cache.py build/apps/autoaim_video
