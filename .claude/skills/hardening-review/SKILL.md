@@ -1,10 +1,10 @@
 ---
 name: hardening-review
-description: RM 自瞄全量硬化审查（单仓 rm-vision）。用户说审查、复核、找缺陷、hardening、code review、通读代码时使用。按固定清单逐项核验并用构建/测试/复现实验给证据，不凭阅读印象下结论。含串口与单仓模块边界清单。
+description: RM 自瞄全量硬化审查（单仓 robot-vision-aim）。用户说审查、复核、找缺陷、hardening、code review、通读代码时使用。按固定清单逐项核验并用构建/测试/复现实验给证据，不凭阅读印象下结论。含串口与单仓模块边界清单。
 allowed-tools: Read, Grep, Glob, Bash(cmake *), Bash(cmake --build *), Bash(ctest *), Bash(git diff *), Bash(git log *), Bash(git status *)
 ---
 
-# 硬化审查流程（rm-vision 单仓）
+# 硬化审查流程（robot-vision-aim 单仓）
 
 ## 步骤
 1. 先进入 Plan 模式通读：列出将查的文件与清单，确认后再逐项核验。

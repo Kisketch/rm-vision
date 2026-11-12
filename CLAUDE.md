@@ -1,4 +1,4 @@
-# rm-vision — RoboMaster 视觉自瞄（单仓）
+# robot-vision-aim — RoboMaster 视觉自瞄（单仓）
 
 RoboMaster 视觉自瞄统一代码仓：步兵/英雄与哨兵共用同一套自瞄核心
 （检测 → PnP 位姿 → 整车 EKF 跟踪 → 弹道解算 → 瞄准/火控），哨兵专属的
@@ -7,7 +7,7 @@ C++17 / CMake / OpenCV 4。规则以 2026 赛季为准，2027 仅作前瞻。
 
 当前代码以 `main` 最新提交为准；冻结指标口径见 `BASELINE.md` 与
 `docs/project/monorepo_migration.md`，离线 N0 复现用 `core/config/video_reference.yaml`。
-公开仓 https://github.com/Kisketch/rm-vision ，CI 见 GitHub Actions。
+公开仓 https://github.com/Kisketch/robot-vision-aim ，CI 见 GitHub Actions。
 旧两仓 rm-autoaim / rm-sentry-integration 已归档只读，**不要再往旧仓推代码**；
 作业仓 rm-armor-detection 不在本仓范围内，**一律不动**；回归视频在本仓 Release `data-v1-2026-11-09` 附件中。
 

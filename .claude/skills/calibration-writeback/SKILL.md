@@ -1,10 +1,10 @@
 ---
 name: calibration-writeback
-description: 上车实测数据回写配置（单仓 rm-vision）。用户说回写、标定结果、实测数据、试机数据带回时使用。只接受带测量方法与原始数据的实测值，估计/占位值不得回写为实测，写后跑回归并建新基线说明。
+description: 上车实测数据回写配置（单仓 robot-vision-aim）。用户说回写、标定结果、实测数据、试机数据带回时使用。只接受带测量方法与原始数据的实测值，估计/占位值不得回写为实测，写后跑回归并建新基线说明。
 allowed-tools: Read, Grep, Edit, Bash(cmake *), Bash(cmake --build *), Bash(ctest *), Bash(./build/*), Bash(git diff *)
 ---
 
-# 实测回写流程（rm-vision）
+# 实测回写流程（robot-vision-aim）
 
 ## 准入（缺一不写）
 每项数据必须有：数值 + 单位 + 测量方法 + 原始记录（日志/计数/录像文件名）。只有结论数字、没有方法的，退回并列出缺什么。

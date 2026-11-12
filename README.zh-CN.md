@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" width="180" alt="rm-vision logo">
+  <img src="docs/assets/logo.svg" width="180" alt="robot-vision-aim logo">
 </p>
 
-<h1 align="center">rm-vision</h1>
+<h1 align="center">robot-vision-aim</h1>
 
 <p align="center">
   <strong>一套基于整车 EKF 的机器人视觉识别与自动瞄准系统。</strong><br>
@@ -41,7 +41,7 @@ Linux、CMake ≥ 3.16、C++17 编译器、OpenCV 4。构建、跑测试，然�
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
 ctest --test-dir build --output-on-failure          # 5 项，必须全过
-gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video
+gh release download data-v1-2026-11-09 --repo Kisketch/robot-vision-aim -D ./video
 cat video/4.avi.part-00 video/4.avi.part-01 > video/4.avi
 python3 tools/regression.py --exe build/apps/autoaim_video   # 冻结参考口径
 python3 tools/regression.py --exe build/apps/autoaim_video --config core/config/default.yaml
@@ -476,14 +476,14 @@ direct 得 43%，robot EKF 得 99.6%。oracle 一行是评测自身的上限（�
 约 4 pp），所以模拟器只在同一台机器上比较，而视频才是门禁。
 
 **自己复现它们。** 两段录像是本仓库自己的
-[`data-v1-2026-11-09` 发布](https://github.com/Kisketch/rm-vision/releases/tag/data-v1-2026-11-09)
+[`data-v1-2026-11-09` 发布](https://github.com/Kisketch/robot-vision-aim/releases/tag/data-v1-2026-11-09)
 的资产（SHA-256 校验和在发布说明中）；检测缓存、跟踪器输出与原始运行
 报告在 [`data/eval_cache/`](data/eval_cache/)（每段视频一份权威缓存——所有
 历史副本逐字节一致，经 md5 核验；见该目录的 README）。把资产下载到
 `video/`（4.avi 以两部分发布——按发布说明拼接），然后：
 
 ```bash
-gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video
+gh release download data-v1-2026-11-09 --repo Kisketch/robot-vision-aim -D ./video
 python3 tools/regression.py            # video gate (frozen reference) + simulator gate
 ```
 
@@ -501,7 +501,7 @@ python3 tools/regression.py            # video gate (frozen reference) + simulat
 ## 仓库结构
 
 ```
-rm-vision/
+robot-vision-aim/
 ├── CMakeLists.txt        # top level; options BUILD_SENTRY, AUTOAIM_WITH_MVS
 ├── README.md             # this file
 ├── BASELINE.md           # frozen regression baselines and how to reproduce them

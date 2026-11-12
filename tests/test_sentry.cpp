@@ -539,7 +539,7 @@ void testMergeWindows() {
 }
 
 void testConfigValidation() {
-    // rm-vision layout: the core default config lives under AUTOAIM_ROOT
+    // robot-vision-aim layout: the core default config lives under AUTOAIM_ROOT
     // (core/), the sentry config under SENTRY_ROOT (sentry/).
     for (const auto& p : {std::string(AUTOAIM_ROOT) + "/config/default.yaml",
                           std::string(SENTRY_ROOT) + "/config/sentry.yaml"}) {

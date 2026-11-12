@@ -4,6 +4,14 @@
 > 合并后也记录全仓级变更，但不追求完整——全仓变更以 git 提交历史与
 > docs/ 下各轮审查文档（如 docs/reviews/engineering_review_r6.md）为准。
 
+## 2026-11-11 — 仓库更名：rm-vision → robot-vision-aim
+
+仓库更名为 **robot-vision-aim**，与新定位一致（机器人视觉识别与自动瞄准系统，
+RoboMaster 为开发与验证场景、核心与平台无关可迁移）。旧地址
+https://github.com/Kisketch/rm-vision 由 GitHub 自动跳转到新地址；仓内现行引用
+（README 标题、CLAUDE.md、各 skill 与索引）已同步新名，历史文档（合并史、各轮
+审查记录、研究报告、冻结的 video_reference.yaml）中的旧名按原样保留。
+
 ## 2026-11-11 — 检测前端：灯条断裂修复与横向色块过滤
 
 逐帧排查两段实拍视频的漏检段，修了两个检测前端缺陷（[详细分析](docs/studies/split_light_merge.md)）：

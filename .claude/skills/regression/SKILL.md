@@ -1,10 +1,10 @@
 ---
 name: regression
-description: RM 回归验证（单仓 rm-vision）。用户说跑回归、验证没退化、改完检查、regression 时使用。执行构建、全部测试、仿真，并按需做真实视频回归判定，给出与基线的量化对比。
+description: RM 回归验证（单仓 robot-vision-aim）。用户说跑回归、验证没退化、改完检查、regression 时使用。执行构建、全部测试、仿真，并按需做真实视频回归判定，给出与基线的量化对比。
 allowed-tools: Read, Bash(cmake *), Bash(cmake --build *), Bash(ctest *), Bash(./build/*), Bash(git diff *), Bash(git status *)
 ---
 
-# 回归流程（rm-vision）
+# 回归流程（robot-vision-aim）
 
 1. 干净构建：`cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)`，记录错误/警告数（期望 0 警告）。
 2. 测试：`ctest --test-dir build --output-on-failure`，期望 3 套全过（autoaim_tests / sentry_tests / serial_port_tests）。只建步兵侧时用 `-DBUILD_SENTRY=OFF`，此时只有 core 测试，属预期。

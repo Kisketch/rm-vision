@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" width="180" alt="rm-vision logo">
+  <img src="docs/assets/logo.svg" width="180" alt="robot-vision-aim logo">
 </p>
 
-<h1 align="center">rm-vision</h1>
+<h1 align="center">robot-vision-aim</h1>
 
 <p align="center">
   <strong>A robot vision recognition and auto-aim system built around a whole-robot EKF.</strong><br>
@@ -44,7 +44,7 @@ regression gate does:
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
 ctest --test-dir build --output-on-failure          # 5 suites, all must pass
-gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video
+gh release download data-v1-2026-11-09 --repo Kisketch/robot-vision-aim -D ./video
 cat video/4.avi.part-00 video/4.avi.part-01 > video/4.avi
 python3 tools/regression.py --exe build/apps/autoaim_video   # frozen reference calibre
 python3 tools/regression.py --exe build/apps/autoaim_video --config core/config/default.yaml
@@ -575,7 +575,7 @@ are compared on the same machine, and the videos are the gate.
 
 **Reproduce them yourself.** The two recordings are assets of this
 repository's own
-[`data-v1-2026-11-09` release](https://github.com/Kisketch/rm-vision/releases/tag/data-v1-2026-11-09)
+[`data-v1-2026-11-09` release](https://github.com/Kisketch/robot-vision-aim/releases/tag/data-v1-2026-11-09)
 (SHA-256 sums in the release notes); the detection caches, tracker
 outputs and raw run reports are in [`data/eval_cache/`](data/eval_cache/)
 (one canonical cache per video — all historical copies are byte-identical,
@@ -584,7 +584,7 @@ md5-verified; see that directory's README). Download the assets into
 notes describe), then:
 
 ```bash
-gh release download data-v1-2026-11-09 --repo Kisketch/rm-vision -D ./video
+gh release download data-v1-2026-11-09 --repo Kisketch/robot-vision-aim -D ./video
 python3 tools/regression.py            # video gate (frozen reference) + simulator gate
 ```
 
@@ -604,7 +604,7 @@ includes the [camera inventory and capture settings](docs/deploy/deployment_map.
 ## Repository layout
 
 ```
-rm-vision/
+robot-vision-aim/
 ├── CMakeLists.txt        # top level; options BUILD_SENTRY, AUTOAIM_WITH_MVS
 ├── README.md             # this file
 ├── BASELINE.md           # frozen regression baselines and how to reproduce them

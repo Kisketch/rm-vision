@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(rm_vision LANGUAGES CXX)
 
-# rm-vision: the consolidated RoboMaster vision auto-aim repository
+# robot-vision-aim: the consolidated RoboMaster vision auto-aim repository
 # (rm-autoaim + rm-sentry-integration merged 2026-11-10; see README.md).
 #   core/    shared auto-aim core (one copy — detection, PnP, EKF, ballistics)
 #   sentry/  sentry-only module (multi-target manager, serial, ROI, outpost)

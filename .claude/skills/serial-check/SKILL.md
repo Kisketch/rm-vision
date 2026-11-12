@@ -1,6 +1,6 @@
 ---
 name: serial-check
-description: 哨兵串口链路专项检查（rm-vision 的 sentry/ 模块）。用户说串口、serial、姿态流、MCU 联调、CRC 时使用。离线查协议与代码，上车项给出可勾选的验证步骤与判据，不把离线结论冒充上车结论。
+description: 哨兵串口链路专项检查（robot-vision-aim 的 sentry/ 模块）。用户说串口、serial、姿态流、MCU 联调、CRC 时使用。离线查协议与代码，上车项给出可勾选的验证步骤与判据，不把离线结论冒充上车结论。
 allowed-tools: Read, Grep, Bash(./build/tests/serial_port_tests *), Bash(./build/sentry/sentry_robot *), Bash(ctest *)
 ---
 

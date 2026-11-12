@@ -1,6 +1,6 @@
 ---
 name: monorepo
-description: rm-vision 单仓模块边界检查。用户说模块归属、这段代码放哪、core 还是 sentry、合并后结构、monorepo 时使用。判定改动应属 core / sentry / apps / tools 哪一层，禁止核心代码多份拷贝。
+description: robot-vision-aim 单仓模块边界检查。用户说模块归属、这段代码放哪、core 还是 sentry、合并后结构、monorepo 时使用。判定改动应属 core / sentry / apps / tools 哪一层，禁止核心代码多份拷贝。
 allowed-tools: Read, Grep, Glob, Bash(git diff *), Bash(git log *), Bash(git status *)
 ---
 

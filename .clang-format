@@ -1,4 +1,4 @@
-# rm-vision code style baseline (round 6).  Matches the existing code:
+# robot-vision-aim code style baseline (round 6).  Matches the existing code:
 # 4-space indent, braces on the declaration line, 100-column soft limit,
 # pointers/references bound to the type.  Not yet enforced in CI - the
 # codebase predates the file; enforcement waits for a formatting baseline
