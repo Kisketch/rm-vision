@@ -49,7 +49,9 @@
 | `docs/deploy/` | 3 | 部署与目标机 |
 | `docs/reviews/` | 12 | 审查、加固与审计 |
 | `docs/project/` | 13 | 项目史与盘点（含设计档案页 design_archive.html） |
-| `docs/charts/` | 17 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
+| `docs/charts/` | 20 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
+| `docs/diagrams/` | 3 | 原理示意图（流水线、曝光时刻对齐、整车模型；SVG，tools/make_diagrams.py 生成） |
+| `docs/figures/` | 2 | 真实画面图（README 头部动图、检测四步图；tools/make_figures.py 用 Release 视频 + 仓内缓存生成） |
 | `docs/assets/` | 1 | 仓库标志 logo.svg（README 顶部居中展示） |
 | `docs/decisions/` | 3 | 架构决策记录 ADR-001 共享核心 / ADR-002 整车 EKF / ADR-003 CameraSource 与曝光戳 |
 | `docs/detections/` | 11 | 检测效果样例图/视频（说明用；含灯条断裂修复前后对比图） |
@@ -61,7 +63,7 @@
 - **入口页（`docs/`）**：[README](README.md)（目录导航与"新文档放哪"）、
   [api_overview](api_overview.md)（公共 API 速览：两条流水线入口与语义约定）、
   [parameters](parameters.md)（参数清单）、
-  [performance_charts](performance_charts.md)（数据图表页：十七张深色主题 SVG 图表呈现命中率/压力/耗时/误差预算、两项否决研究，以及误差与强度的时间线、预测时域曲线、sigma 校准、检测器 A/B、模拟器场景、策略阶梯、ROI 窗口、弹道曲线与相机带宽，生成脚本 tools/make_charts.py）
+  [performance_charts](performance_charts.md)（数据图表页：二十张深色主题 SVG 图表呈现命中率/压力/耗时/误差预算、两项否决研究，以及误差与强度的时间线、预测时域曲线、sigma 校准、检测器 A/B、模拟器场景、策略阶梯、ROI 窗口、弹道曲线、相机带宽、调参历史、DPS 取舍与跟踪器转速曲线，生成脚本 tools/make_charts.py）
 - **设计（`design/`）**：timestamp_design、attitude_timestamp_alignment、timestamp_alignment、
   device_id_and_crc、bullet_speed、yolo_keypoints_plan、multi_target、roi_detection、
   SENTRY_INTEGRATION（哨兵视觉整合：旧仓 → 新核的替代设计）
@@ -117,7 +119,7 @@
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `tools/` | 14 | 回归/调参/标定脚本（regression、tune_sim、auto_improve、calibrate_intrinsics、check_extrinsics、make_charts 等，路径已按单仓布局更新） |
+| `tools/` | 17 | 回归/调参/标定脚本（regression、tune_sim、auto_improve、calibrate_intrinsics、check_extrinsics、make_charts、make_diagrams、make_figures 等，路径已按单仓布局更新） |
 | `tools/offline_eval/` | 4 | 离线回归台架源码 + 说明（非 CMake 目标，基线证据复现用） |
 | `data/eval_cache/` | 39 | 真视频评测原始数据：两视频的检测缓存（每视频一份去重后的权威副本）+ 全部跟踪 CSV/报告/日志，按视频分 3/、4/ 两组，分类说明见其 README |
 | `tools/tasks/` | 21 | 任务/数据处理脚本集 |
@@ -133,7 +135,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 368 个（`git ls-files`，2026-11-11 文档分目录后复核）；迁移审计的 269 个是历史快照。
+当前跟踪文件 378 个（`git ls-files`，2026-11-12 README 视觉化后复核：新增 3 张数据图、3 张示意图、2 张真实画面图与 2 个生成脚本）；迁移审计的 269 个是历史快照。
 2026-11-11：`docs/` 74 篇平铺文档按用途移入 `design/ studies/ calibration/ deploy/ reviews/ project/`
 （只移动不改名，全仓链接逐个重算，链接检查 0 失效），新增 `docs/README.md`、
 `studies/split_light_merge.md` 与一张对比图。

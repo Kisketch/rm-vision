@@ -14,7 +14,7 @@ catalogue is [`INDEX.md`](INDEX.md), and the frozen numbers live in
 | [`INDEX.md`](INDEX.md) | 全仓目录索引：每个目录、每篇文档的一句话标注 |
 | [`api_overview.md`](api_overview.md) | 公共 API 一页速览：两条流水线入口与易误用语义 |
 | [`parameters.md`](parameters.md) | 参数清单：哪些可 `--set` 扫描、哪些要改配置文件 |
-| [`performance_charts.md`](performance_charts.md) | 17 张数据图表，每张配数据表与解读 |
+| [`performance_charts.md`](performance_charts.md) | 20 张数据图表，每张配数据表与解读 |
 
 ## 目录 / Folders
 
@@ -27,7 +27,9 @@ catalogue is [`INDEX.md`](INDEX.md), and the frozen numbers live in
 | [`reviews/`](reviews/) | 12 | 历轮代码审查、加固与审计的逐条处置 | [`engineering_review_r6.md`](reviews/engineering_review_r6.md) |
 | [`project/`](project/) | 13 | 项目史与盘点：单仓合并、相对旧代码的改动、待办、进度 | [`changes_vs_legacy.md`](project/changes_vs_legacy.md) |
 | [`decisions/`](decisions/) | 3 | 架构决策记录（ADR） | — |
-| [`charts/`](charts/) | 17 | 数据图表 SVG（`tools/make_charts.py` 生成） | — |
+| [`charts/`](charts/) | 20 | 数据图表 SVG（`tools/make_charts.py` 生成） | — |
+| [`diagrams/`](diagrams/) | 3 | 原理示意图 SVG（`tools/make_diagrams.py` 生成） | — |
+| [`figures/`](figures/) | 2 | 真实画面图：README 动图、检测四步（`tools/make_figures.py` 生成） | — |
 | [`detections/`](detections/) | 11 | 检测效果样例图/视频 | — |
 | [`assets/`](assets/) | 1 | 仓库标志 | — |
 

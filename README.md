@@ -1,38 +1,62 @@
 <p align="center">
-  <img src="docs/assets/logo.svg" width="180" alt="robot-vision-aim logo">
+  <img src="docs/assets/logo.svg" width="160" alt="robot-vision-aim logo">
 </p>
 
 <h1 align="center">robot-vision-aim</h1>
 
 <p align="center">
-  <strong>A robot vision recognition and auto-aim system built around a whole-robot EKF.</strong><br>
-  Armor detection → PnP pose estimation → whole-robot EKF tracking → ballistic solution → aiming and fire control, in C++17 (no ROS, no Eigen — OpenCV only). One shared core serves the infantry/hero robots and the sentry; the sentry adds multi-target management (including the outpost), a serial link to the MCU, and tracking-guided ROI detection. Developed and validated on RoboMaster competition robots; the shared core is platform-independent and reusable on other robot platforms.
+  <strong>See the armor plate, track the whole robot, put the shot where the plate will be.</strong><br>
+  A C++17 vision auto-aim system: light-bar detection → PnP pose → whole-robot EKF → ballistics and fire control.<br>
+  OpenCV only — no ROS, no Eigen. One shared core for infantry, hero and sentry.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Kisketch/robot-vision-aim/actions/workflows/ci.yml"><img src="https://github.com/Kisketch/robot-vision-aim/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <img src="https://img.shields.io/badge/C%2B%2B-17-3b82f6" alt="C++17">
+  <img src="https://img.shields.io/badge/OpenCV-4-14b8a6" alt="OpenCV 4">
+  <img src="https://img.shields.io/badge/license-MIT-f59e0b" alt="MIT license">
 </p>
 
 <p align="center">
   Languages: <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
+<p align="center">
+  <img src="docs/figures/demo_spin_4avi.gif" width="560" alt="Detection and tracking on real footage of a robot spinning at about 8 rad/s"><br>
+  <sub>Real footage (4.avi, ≈ 8.3 rad/s spin), brightened for display. The boxes are the detector's own cached output and the status line is the tracker's state — nothing is drawn by hand. Regenerate with <code>tools/make_figures.py</code>.</sub>
+</p>
+
 ---
 
-## Preview
+## At a glance
 
-| Hit rates on real video |
-|---|
-| ![Hit rate by configuration and calibre](docs/charts/hit_rates.svg) |
+- **What it does.** Finds the enemy robot's armor plates in every frame,
+  solves each plate's 3-D pose, tracks the *whole robot* — centre, spin,
+  plate radii — with one filter, and aims at the plate that will face the
+  gun when the bullet arrives.
+- **Why it works on spinning robots.** A per-plate tracker loses its
+  target every quarter-turn; a whole-robot model always knows where the
+  next plate is. On the two reference recordings the whole-robot EKF hits
+  **67.6% / 68.6%** of virtual shots, against **29.6% / 43.1%** for a
+  per-plate Kalman filter.
+- **Where it runs.** Infantry and hero robots use the shared core as a
+  library; the sentry adds multi-target management, a serial link to the
+  MCU and tracking-guided ROI detection. Developed and validated on
+  RoboMaster competition robots; the shared core is platform-independent
+  and reusable on other robot platforms.
+- **Why you can check it.** Every headline number can be regenerated from
+  this repository and its release data, and the regression gate
+  (`tools/regression.py`) fails any change that makes one worse.
 
-| Simulator scenarios |
-|---|
-| ![Simulator scenarios: hit rate by strategy](docs/charts/sim_scenarios.svg) |
+![Strategy ladder on real video](docs/charts/strategy_ceiling.svg)
 
-Full results, each chart beside its data table: [Measured data](#measured-data).
-
-The system is built around three concerns that competition code often gets
-wrong: **time** (every observation is aligned to the camera's exposure
-instant, not to when the frame happened to arrive), **identity** (a target
-is a physical robot — colour + plate number + plate size — not "whatever
-blob is nearest"), and **evidence** (every headline number in this README
-can be reproduced from this repository alone, data included).
+The design is built around three things competition code often gets wrong:
+**time** — every observation is aligned to the camera's exposure instant,
+not to when the frame happened to arrive; **identity** — a target is a
+physical robot (colour + plate number + plate size), not "whatever blob
+is nearest"; and **evidence** — results ship with the data and scripts
+that produced them. Full results, each chart beside its data table:
+[Measured data](#measured-data).
 
 ## Quick start
 
@@ -46,7 +70,7 @@ cmake --build build -j"$(nproc)"
 ctest --test-dir build --output-on-failure          # 5 suites, all must pass
 gh release download data-v1-2026-11-09 --repo Kisketch/robot-vision-aim -D ./video
 cat video/4.avi.part-00 video/4.avi.part-01 > video/4.avi
-python3 tools/regression.py --exe build/apps/autoaim_video   # frozen reference calibre
+python3 tools/regression.py --exe build/apps/autoaim_video   # frozen reference config
 python3 tools/regression.py --exe build/apps/autoaim_video --config core/config/default.yaml
 ```
 
@@ -64,7 +88,7 @@ one red No. 3 infantry robot spinning in front of the camera):
 
 ## Contents
 
-- [Quick start](#quick-start)
+- [At a glance](#at-a-glance) · [Quick start](#quick-start)
 - [Design rationale](#design-rationale) — the reasoning behind each stage,
   including what was tried and rejected, with the numbers that decided it
 - [Measured data](#measured-data) — calibration values, real-video results,
@@ -79,14 +103,10 @@ one red No. 3 infantry robot spinning in front of the camera):
 
 ## Design rationale
 
-```
-frame ──► Detector ──► PoseSolver ──► Tracker (EKF) ──► Aimer ──► fire command
-            │              │               │               │
-     light bars +     IPPE multi-     13-state whole-   ballistic RK4 +
-     MLP digits,      solution +      robot model,      Hermite crossing,
-     or ONNX          physical        multi-armor       centre mode for
-     keypoints        screening       association       fast spinners
-```
+![Pipeline: one frame, from photons to a fire command](docs/diagrams/pipeline.svg)
+
+Each stage below explains what it does, why it is built that way, and
+which alternatives were measured and rejected.
 
 ### Time first: exposure-instant alignment
 
@@ -96,6 +116,8 @@ codebase stamped frames at serial-receipt time and averaged the two
 neighbouring attitude samples. At a gimbal rate of 3 rad/s, every 1 ms of
 stamp error is 0.17° of aim error, and receipt-time stamping is wrong by
 the whole processing+transport delay, always in the same direction.
+
+![Exposure-instant alignment vs receipt-time lookup](docs/diagrams/time_alignment.svg)
 
 This system stamps every frame at its **exposure instant** and keeps the
 gimbal attitude in a ring buffer (`PoseBuffer`) that interpolates with
@@ -127,6 +149,12 @@ per-corner confidence gating, `keypoint_min_conf` 0.25) can replace the
 front end without touching downstream code; if the model fails to load,
 the system falls back to the classical path.
 
+![Detector stages on a real frame](docs/figures/detector_stages_3avi.png)
+
+<sub>One real frame (3.avi, frame 1600), brightened for display. Panels 2–3
+replay the detector's own preprocessing (R − B, threshold 70, the same
+morphology); panel 4 is the detector's cached output.</sub>
+
 The defensive part matters more than the algorithm: the detector entry
 point normalises its input (an empty frame once segfaulted the pipeline —
 `cv::split` on an empty image yields zero channels — and degenerate or
@@ -149,9 +177,11 @@ above a bar has a bright gap too — which is why the merge is additive.
 The same investigation found that horizontal light strips passed the
 bar filter (`makeLight` measured a lying-down blob's thickness as its
 length, so its tilt read 0°) and could veto real plates; they are now
-rejected. Live calibre: 3.avi 57.3% → 58.1%, 4.avi detections
+rejected. Live config: 3.avi 57.3% → 58.1%, 4.avi detections
 byte-identical, detection time unchanged
 ([`docs/studies/split_light_merge.md`](docs/studies/split_light_merge.md)).
+
+![Split light bar before and after the merge](docs/detections/split_light_merge_3_f02023.png)
 
 ### Pose: multi-solution PnP with physical screening
 
@@ -184,6 +214,8 @@ yaw and yaw rate, both armor radii (r1, r2), the second pair's height
 offset (dz), and an optional constant-acceleration pair. Details that
 carry the performance:
 
+![The whole-robot model and its 13 states](docs/diagrams/robot_model.svg)
+
 - **Multi-armor association.** Each detection is matched by Mahalanobis
   gate to whichever of the four model plates it fits; two plates in one
   frame are fused sequentially. Plate switching needs no hand-written
@@ -206,6 +238,11 @@ carry the performance:
   unglamorous numerics that keep a 13-state filter honest over minutes
   of 25 fps updates.
 
+What the filter believes on real footage — the estimated spin rate on
+both recordings:
+
+![Estimated spin rate over time](docs/charts/tracker_state.svg)
+
 **Rejected, with evidence.** A constant-acceleration model was tested
 behind a flag: on the simulator it helped (mean 78.0% → 79.6%), on both
 real videos it regressed hard (66.6% → 61.3%, 65.4% → 58.7%) — at 25 fps
@@ -220,13 +257,15 @@ The aimer predicts the target over system latency + bullet flight time,
 solves the ballistic shot (below), and picks which plate to engage.
 Three lessons are baked in:
 
-- **Hit rate alone is gameable.** Widening the fire window or the plate
-  switch angle raises hit rate monotonically while destroying volume
-  (video 4: switch angle 20° → 45° gives 65.4% → 71.9% but 9.2 →
-  5.3 hits/s). Every shipped value is chosen on **hits per second**
-  (damage output), and both the fire window (≈ 30° facing) and the
-  switch hysteresis (3°, the one knob that improved both videos at no
-  volume cost) are set at their DPS optimum, not their accuracy optimum.
+- **Hit rate alone is gameable.** A stricter fire policy raises hit
+  rate while cutting volume (video 4: switch angle 20° → 45° gives
+  65.4% → 71.9% but 9.2 → 5.3 hits/s), so every knob is also judged on
+  **damage per second**. The sweep in the chart below shows a genuine
+  trade-off, not a free lunch: widening the fire window to 39° buys
+  +10.6% DPS for about 2 pp of hit rate. The shipped values (30° fire
+  window, 20° switch angle, 0.35 m match gate) sit at the balance point;
+  the switch hysteresis (3°) is the one knob that improved both videos
+  at no volume cost.
 - **Centre mode is a threshold, not a default.** At high spin rates it
   is better to aim at the robot centre and fire as a plate rotates
   through the window. Measured at 25 fps with a realistic gimbal lag,
@@ -237,6 +276,8 @@ Three lessons are baked in:
   feedforward lifts the hard-strafe scenario 43.8% → 51.1%; whether the
   MCU consumes the rate term is a firmware decision the vision side
   cannot make alone.
+
+![Hit rate vs damage per second](docs/charts/dps_tradeoff.svg)
 
 ### Ballistics: exact enough, fast enough
 
@@ -252,10 +293,6 @@ one, is the only safe input. The 42 mm values shipped today are
 placeholders (see Measured data) pending hero-robot measurement.
 
 ![Ballistics: flight time and level-fire drop vs distance](docs/charts/ballistics_curves.svg)
-
-**Chart — compute cost of the solves described above (and of detection):**
-
-![Compute cost, legacy vs current](docs/charts/latency.svg)
 
 ### Identity: one robot, one track
 
@@ -285,6 +322,8 @@ shipped path: ROI on vs off gives identical observations (890 = 890).
 `--roi` still defaults to off until gimbal-motion projection accuracy
 is validated on the robot.
 
+![ROI window margin A/B](docs/charts/roi_windows.svg)
+
 ### Serial link: the protocol is part of the algorithm
 
 The sentry's MCU link (17-byte attitude frames in, 21-byte commands
@@ -304,7 +343,7 @@ calibration; that is now structurally impossible, PTY-verified).
 ## Measured data
 
 Every table below is paired with its chart (generated by
-`tools/make_charts.py`; readings and sources for all 17 charts in
+`tools/make_charts.py`; readings and sources for all 20 charts in
 [docs/performance_charts.md](docs/performance_charts.md)).
 
 ### Calibration and hardware values (as shipped in `core/config/default.yaml`)
@@ -394,9 +433,9 @@ The live config scores lower *on these videos* because the videos were
 not shot with the team's camera: the reference configuration's assumed
 intrinsics were fitted to this footage, the measured ones were not. The
 gap is a camera-provenance artefact, not a code regression — a baseline
-in the live calibre needs footage from the team's own camera (the "N1
-baseline", pending). `tools/regression.py` gates both calibres with
-one-sided, drop-only tolerances.
+for the live config needs footage from the team's own camera (the "N1
+baseline", pending). `tools/regression.py` gates both configurations
+with one-sided, drop-only tolerances.
 
 The same runs under all three reporting conventions (see Evaluation
 method for definitions; robot EKF):
@@ -415,9 +454,9 @@ target, few full occlusions), not a guarantee: on occlusion-heavy
 footage the gap is exactly the bias the three-metric report exists to
 expose.
 
-**Chart — the frozen tables above as bars (all calibres, both conventions):**
+**Chart — the frozen tables above as bars (both configurations, both conventions):**
 
-![Hit rate by configuration and calibre](docs/charts/hit_rates.svg)
+![Hit rate by evaluation configuration](docs/charts/hit_rates.svg)
 
 **Chart — engagement intensity of the same runs (tracking share and cumulative hits over time):**
 
@@ -426,8 +465,8 @@ expose.
 ### Simulator (ground truth)
 
 `autoaim_sim`: 0.7 px corner noise, 5% detection drop-out, 25 fps,
-60 ms latency. Eight scenarios (22 m/s calibre; absolute values shift a
-few points with calibre and machine, rankings do not):
+60 ms latency. Eight scenarios (22 m/s bullet speed; absolute values
+shift a few points with bullet speed and machine, rankings do not):
 
 | Scenario | direct | point KF | **robot EKF** | hits/s | centre err | ω err |
 |---|---:|---:|---:|---:|---:|---:|
@@ -460,20 +499,25 @@ dropout, whole-frame drops, decimation to half rate, timestamp jitter)
 and sweeps latency. Headline findings; the full matrix is in
 [`docs/studies/FIELD_CONDITIONS_2026-11-11.md`](docs/studies/FIELD_CONDITIONS_2026-11-11.md):
 
-- **Frame drops are survivable; the old evaluator could not see it.**
-  The pre-fix evaluator stepped the simulated gimbal by a constant
-  1/fps and indexed impact frames as T·fps, so a 20% frame drop read
-  as a 22.5% hit rate. The rate-agnostic evaluator (dt from stamp
-  deltas, impacts bracketed by timestamp) reads the same run as
-  **68.3%** — the drops cost ~0 pp because the tracker and aimer are
-  timestamp-driven. Every framedrop conclusion drawn before that fix
-  was invalid and has been re-measured.
+- **Frame drops: the slow target shrugs them off, the fast one does
+  not.** With 20% of frames dropped, 3.avi holds **68.3%** while 4.avi
+  falls from 68.6% to **62.1%** (55.3% at 40%): at 8 rad/s a missing
+  frame is ≈ 19° of unseen spin. These numbers come from the
+  rate-agnostic evaluator (dt from stamp deltas, impacts bracketed by
+  timestamp). The pre-fix evaluator stepped the simulated gimbal by a
+  constant 1/fps and indexed impact frames as T·fps, so the same 20%
+  drop on 3.avi read as 22.5%; every frame-drop conclusion drawn before
+  that fix was re-measured.
 - Association gates widen with the actual frame interval, so a dropped
   frame does not masquerade as a lost target; sustained half-rate
   operation (12.5 fps) degrades gracefully rather than collapsing.
+- **Timestamps matter more than frames.** 10 ms of timestamp jitter
+  costs 4.avi more than losing 40% of its frames (68.6% → 49.0%).
 - End-to-end latency is the dominant field variable: it enters the
   prediction lead linearly, and its on-robot value is a measurement,
   not a constant — see the trial checklist in Documentation.
+
+![Robustness under field stress](docs/charts/field_conditions.svg)
 
 ### Timing
 
@@ -490,6 +534,8 @@ from 5 passes to 3, pixel-identical over 470 M px):
 | tracking-guided ROI detection (sentry) | 1.3–1.6 ms |
 | pose solve | ≈ 72 µs |
 | ballistic solve (warm-started) | ≈ 40 µs |
+
+![Compute cost, legacy vs current](docs/charts/latency.svg)
 
 ### Tuning history (ablation, one change at a time)
 
@@ -513,10 +559,12 @@ canonical frozen values are `BASELINE.md`'s.
 | K | + `q_yaw_walk` 0.05, yaw-channel adaptation (live config only) | 57.3%* | 66.9%* |
 | L | + split-bar merge, horizontal-blob rejection (detector; live config only) | 58.1%* (15.2) | 66.9%* (12.4) |
 
+![Tuning history, one change at a time](docs/charts/tuning_history.svg)
+
 \* Stages K and L ship only in the live/sentry configurations; their rows
-are therefore in the live calibre (see Frozen baselines) and are not
-comparable with the rows above. Under the reference calibre the same
-knob would read 68.4% / 71.1%, but writing it into the frozen calibre
+are therefore in the live config (see Frozen baselines) and are not
+comparable with the rows above. Under the reference config the same
+knob would read 68.4% / 71.1%, but writing it into the frozen reference
 is a team decision and has not been taken.
 
 Two cautionary results from the same log:
@@ -541,6 +589,8 @@ misses are dominated by yaw-rate jitter, not bias — aimed-at plate
 centres are correct (median `off_u` ≈ 0 on hits), the error direction
 follows the spin sign, and 40–49% of misses miss by less than half a
 panel width.
+
+![Where the remaining error lives](docs/charts/error_budget.svg)
 
 ## Evaluation method
 
@@ -569,9 +619,9 @@ across code changes on the same data and configuration. They are not
 live-fire hit rates: no real gimbal dynamics, no real projectile
 dispersion, no referee-system behaviour. The simulator numbers carry a
 further caveat — absolute values drift by a few points across machines
-and OpenCV builds (the reference table above was produced at the
-22 m/s calibre; a 25 m/s calibre reads ~4 pp higher), so simulators
-are compared on the same machine, and the videos are the gate.
+and OpenCV builds (the reference table above was produced at a 22 m/s
+bullet speed; 25 m/s reads ~4 pp higher), so simulators are compared
+on the same machine, and the videos are the gate.
 
 **Reproduce them yourself.** The two recordings are assets of this
 repository's own
@@ -593,7 +643,7 @@ python3 tools/regression.py            # video gate (frozen reference) + simulat
 The only live executable this repository builds is the **sentry program**:
 `sentry/apps/sentry_robot.cpp` (library `autoaim_sentry` in `sentry/`)
 linked against the shared core library `autoaim_core` in `core/`, using
-`sentry/config/sentry.yaml` and the measured-calibre
+`sentry/config/sentry.yaml` and the measured-calibration
 `core/config/default.yaml`. For infantry/hero there is no standalone live
 binary here by design — the algorithm ships as the `autoaim_core` library
 (`apps/` holds offline evaluation and simulation tools only), and
@@ -630,7 +680,7 @@ robot-vision-aim/
 ├── tests/                # five ctest entries: core, sentry, serial (PTY end-to-end),
 │                         # regression-gate contract, header self-containment
 ├── tools/                # regression gate, sim tuning, calibration helpers,
-│                         # offline evaluation harnesses
+│                         # offline evaluation harnesses, chart/diagram/figure generators
 ├── data/eval_cache/      # detection caches + tracker outputs + raw reports for both videos
 ├── docs/                 # INDEX · api_overview · parameters · performance_charts, plus
 │   ├── design/           #   why each mechanism is built the way it is
@@ -639,7 +689,7 @@ robot-vision-aim/
 │   ├── deploy/           #   what runs on the robot and how to install it
 │   ├── reviews/          #   code reviews, hardening rounds, audits
 │   ├── project/          #   monorepo migration, changes vs legacy, backlog, progress
-│   └── decisions/ · charts/ · detections/ · assets/
+│   └── decisions/ · charts/ · diagrams/ · figures/ · detections/ · assets/
 ├── reports/              # simulation and real-video evaluation reports
 ├── legacy/               # the previous on-robot codebase, kept whole for reference
 └── archive/              # retired tooling and historical patches, labelled as such
@@ -746,7 +796,7 @@ over-speed lockout) is a referee constraint, not a tuning target.
   the whole tree, file by file.
 - [`docs/studies/split_light_merge.md`](docs/studies/split_light_merge.md) —
   the over-exposed-bar fix: diagnosis, the rejected first version, A/B
-  numbers in all calibres.
+  numbers in all configurations.
 - [`docs/calibration/camera_hardware.md`](docs/calibration/camera_hardware.md) — the team's
   actual cameras (Hikrobot MVS main camera, twin 720p omni cameras):
   frame rates, exposures, pixel formats, and the USB bandwidth caveat.
@@ -759,6 +809,10 @@ over-speed lockout) is a referee constraint, not a tuning target.
   field-condition stress matrix.
 - [`data/eval_cache/README.md`](data/eval_cache/README.md) — what the
   cached evaluation data is and how it was deduplicated.
+- Every image in this README is generated: `tools/make_charts.py` (data
+  charts), `tools/make_diagrams.py` (diagrams) and `tools/make_figures.py`
+  (real-footage figures, needs the release videos). Readings and data
+  tables for every chart: [`docs/performance_charts.md`](docs/performance_charts.md).
 - Design notes per subsystem (timestamp alignment, bullet speed, target
   identity and CRC, ROI detection, multi-target) are in
   [`docs/design/`](docs/design/); every tuning decision with its data is
