@@ -16,8 +16,9 @@ endif()
 # includes) - see tools/check_headers.sh.
 if (UNIX)
     add_test(NAME header_self_containment
-             COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_headers.sh
-                     ${CMAKE_SOURCE_DIR}/core/include ${CMAKE_SOURCE_DIR}/sentry/include
+             COMMAND ${CMAKE_COMMAND} -E env "CXX=${CMAKE_CXX_COMPILER}"
+                     bash ${PROJECT_SOURCE_DIR}/tools/check_headers.sh
+                     ${PROJECT_SOURCE_DIR}/core/include ${PROJECT_SOURCE_DIR}/sentry/include
                      ${OpenCV_INCLUDE_DIRS})
 endif()
 

@@ -4,20 +4,33 @@
 # and aimer.hpp used std::string without <string> for years).
 # Usage: check_headers.sh CORE_INCLUDE SENTRY_INCLUDE [EXTRA_INCLUDE ...]
 # All arguments are added as -I paths; headers are scanned under the first two.
-set -u
+set -eu
 CXX="${CXX:-c++}"
 roots=("$1" "$2")
 incs=()
 for d in "$@"; do incs+=("-I$d"); done
+tmpdir=$(mktemp -d)
+trap 'rm -rf -- "$tmpdir"' EXIT
+for root in "${roots[@]}"; do
+    if [[ ! -d "$root" ]]; then
+        echo "Missing public include directory: $root" >&2
+        exit 1
+    fi
+done
+find "${roots[@]}" -type f -name '*.hpp' -print0 > "$tmpdir/headers"
+if [[ ! -s "$tmpdir/headers" ]]; then
+    echo "No public headers found" >&2
+    exit 1
+fi
 fail=0
 count=0
-while IFS= read -r h; do
+while IFS= read -r -d '' h; do
     count=$((count + 1))
-    if ! "$CXX" -std=c++17 -fsyntax-only "${incs[@]}" "$h" 2>/tmp/check_headers_err.txt; then
+    if ! "$CXX" -std=c++17 -fsyntax-only "${incs[@]}" "$h" 2>"$tmpdir/errors"; then
         echo "NOT self-contained: $h"
-        head -5 /tmp/check_headers_err.txt
+        head -5 "$tmpdir/errors"
         fail=1
     fi
-done < <(find "${roots[@]}" -name '*.hpp' | sort)
+done < "$tmpdir/headers"
 echo "checked $count headers, failures: $fail"
 exit $fail
