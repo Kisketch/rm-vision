@@ -353,7 +353,9 @@ ROI 开与关给出完全相同的观测（890 = 890）。在云台运动时的�
 | 出厂口径 | 3.avi | 1420 | 1383 | 97.4% | 56.5% | 58.1% |
 | 出厂口径 | 4.avi | 1848 | 1804 | 97.6% | 65.3% | 66.9% |
 
-**3.avi** · [历史策略对照](reports/video3_report.md) 938/1388 = 67.6% · [冻结参考配置](reports/real_video_regression/v3_n0_report.md) 937/1388 = 67.5% · [出厂配置专项实验](docs/studies/split_light_merge.md) 58.1%. 专项实验给出了舍入后的百分比，表中未列出命中次数。
+**3.avi** · [历史策略对照](reports/video3_report.md) 938/1388 = 67.6% · [冻结参考配置](reports/real_video_regression/v3_n0_report.md) 937/1388 = 67.5% · [出厂配置专项实验](docs/studies/split_light_merge.md) 58.1%。按上表两种口径和对应分母反推，唯一相符的整数是 803（803/1383 和 803/1420）。这是从汇总表推算的次数。
+
+**4.avi** 的[历史策略对照](reports/video4_report.md)记录了 1367/1993，[冻结参考配置](reports/real_video_regression/v4_n0_report.md)记录了 1374/2004，两者均舍入为 68.6%。
 
 在这两段视频上，约 97% 的发射在弹着时刻都有检测结果，所以条件口径只比保守口径高
 1.5–2.4 pp。这是*这两段*视频的特点（只有一个可见目标、很少完全遮挡），不是保证：

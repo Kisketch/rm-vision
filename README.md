@@ -444,7 +444,9 @@ method for definitions; robot EKF):
 | live | 3.avi | 1420 | 1383 | 97.4% | 56.5% | 58.1% |
 | live | 4.avi | 1848 | 1804 | 97.6% | 65.3% | 66.9% |
 
-**3.avi** · [Historical comparison](reports/video3_report.md) 938/1388 = 67.6% · [Frozen reference](reports/real_video_regression/v3_n0_report.md) 937/1388 = 67.5% · [Default configuration study](docs/studies/split_light_merge.md) 58.1%. The study reports a rounded percentage. Its underlying hit count is not listed.
+**3.avi** · [Historical comparison](reports/video3_report.md) 938/1388 = 67.6% · [Frozen reference](reports/real_video_regression/v3_n0_report.md) 937/1388 = 67.5% · [Default configuration study](docs/studies/split_light_merge.md) 58.1%. The two rounded rates and denominators above are consistent with exactly 803 hits (803/1383 and 803/1420). This count is inferred from the table.
+
+For **4.avi**, the [historical comparison](reports/video4_report.md) records 1367/1993 and the [frozen reference](reports/real_video_regression/v4_n0_report.md) records 1374/2004. Both round to 68.6%.
 
 On this footage the detector is present at impact time for ~97% of
 shots, so the conditional headline overstates the conservative figure
