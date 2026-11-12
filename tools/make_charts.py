@@ -45,14 +45,14 @@ def hit_rates():
     series = [  # (label, colour, 3.avi, 4.avi) — BASELINE.md / MEASUREMENTS.md
         ("N0 reference, conditional", BLUE, 67.5, 68.6),
         ("N0 reference, conservative", "#93c5fd", 65.1, 67.1),
-        ("Live calibre, conditional", TEAL, 57.3, 66.9),
-        ("Live calibre, conservative", "#2dd4bf", 55.3, 65.3),
+        ("Live config, conditional", TEAL, 58.1, 66.9),
+        ("Live config, conservative", "#2dd4bf", 56.5, 65.3),
         ("Sentry config, conditional", AMBER, 67.6, 71.9),
         ("Point KF, conditional", RED, 29.6, 43.1),
     ]
     W, H, x0, y0, y1, vmax = 920, 540, 70, 76, 428, 80.0
-    p = open_svg(W, H, "Hit rate by configuration and calibre (%)",
-                 "Offline video evaluation; conditional = hits / verifiable shots, conservative = hits / all shots. Live-calibre videos were not shot with the team camera.")
+    p = open_svg(W, H, "Hit rate by evaluation configuration (%)",
+                 "Offline video evaluation; conditional = hits / verifiable shots, conservative = hits / all shots. The videos were not shot with the team camera (live config).")
     y_axis(p, x0, y0, y1, vmax, [0, 20, 40, 60, 80], "%")
     bw, gap = 34, 6
     for gi, video in enumerate(["3.avi", "4.avi"]):
@@ -89,19 +89,21 @@ def field_conditions():
     xs = [x0 + 110, x0 + 420, x0 + 730]
     for x, lab in zip(xs, ["0% dropped", "20% dropped", "40% dropped"]):
         p.append(f'<text x="{x}" y="{y1 + 20}" font-size="12" text-anchor="middle" fill="{INK}">{lab}</text>')
-    for label, colour, vals in lines:
+    for li, (label, colour, vals) in enumerate(lines):
+        other = lines[1 - li][2]
         pts = " ".join(f"{x},{y1 - (v - vmin) / (vmax - vmin) * (y1 - y0):.0f}" for x, v in zip(xs, vals))
         p.append(f'<polyline points="{pts}" fill="none" stroke="{colour}" stroke-width="2.5"/>')
-        for x, v in zip(xs, vals):
+        for x, v, o in zip(xs, vals, other):
             y = y1 - (v - vmin) / (vmax - vmin) * (y1 - y0)
+            dy = -10 if v >= o else 20          # the higher series labels above
             p.append(f'<circle cx="{x}" cy="{y:.0f}" r="4.5" fill="{colour}"/>')
-            p.append(f'<text x="{x}" y="{y - 10:.0f}" font-size="11" text-anchor="middle" fill="{INK}">{v}</text>')
+            p.append(f'<text x="{x}" y="{y + dy:.0f}" font-size="11" text-anchor="middle" fill="{colour}">{v}</text>')
         p.append(f'<text x="{xs[-1] + 16}" y="{y1 - (vals[-1] - vmin) / (vmax - vmin) * (y1 - y0) + 4:.0f}" font-size="11.5" fill="{colour}">{label}</text>')
-    for x, v, lab in [(xs[1], 49.0, "4.avi + 10 ms timestamp jitter: 49.0"),
-                      (xs[2], 55.2, "4.avi at 12.5 fps: 55.2")]:
+    for x, v, lab, dy in [(xs[1], 49.0, "4.avi + 10 ms timestamp jitter: 49.0", 24),
+                          (xs[2], 55.2, "4.avi at 12.5 fps: 55.2", 44)]:
         y = y1 - (v - vmin) / (vmax - vmin) * (y1 - y0)
         p.append(f'<rect x="{x - 6}" y="{y - 6:.0f}" width="12" height="12" transform="rotate(45 {x} {y:.0f})" fill="{RED}"/>')
-        p.append(f'<text x="{x}" y="{y + 24:.0f}" font-size="11" text-anchor="middle" fill="{RED}">{lab}</text>')
+        p.append(f'<text x="{x}" y="{y + dy:.0f}" font-size="11" text-anchor="middle" fill="{RED}">{lab}</text>')
     close_svg(p, "field_conditions.svg")
 
 
@@ -566,6 +568,121 @@ def usb_bandwidth():
     close_svg(p, "usb_bandwidth.svg")
 
 
+# ------------------------------------------------------- tuning history
+def tuning_history():
+    # README "Tuning history" table; A-J in the N0 reference config, K-L live
+    stages = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
+    v3 = [51.2, 51.8, 53.6, 56.3, 62.5, 66.6, 66.8, 67.2, 66.9, 67.6, 57.3, 58.1]
+    v4 = [49.6, 49.4, 50.0, 54.2, 59.6, 65.4, 65.8, 68.1, 67.3, 68.6, 66.9, 66.9]
+    notes = {"A": "first version", "B": "yaw self-cal.", "C": "measured yaw noise",
+             "D": "stiff centre + adaptive Q", "E": "fire only within 30°", "F": "Singer damping",
+             "G": "switch hysteresis", "H": "yaw noise 30 → 8", "I": "hysteresis fix",
+             "J": "q_yaw 3, q_r 3e-3", "K": "q_yaw_walk", "L": "split-bar merge"}
+    W, H, x0, y0, y1, vmin, vmax = 920, 520, 70, 92, 392, 45.0, 75.0
+    p = open_svg(W, H, "Tuning history: one change at a time (robot-EKF hit rate, %)",
+                 "README Tuning history. A–J: frozen N0 reference config. K–L ship only in the live config, which reads lower on these videos — not comparable.")
+    for t in (45, 50, 55, 60, 65, 70, 75):
+        y = y1 - (t - vmin) / (vmax - vmin) * (y1 - y0)
+        p.append(f'<line x1="{x0}" y1="{y:.0f}" x2="{x0 + 820}" y2="{y:.0f}" stroke="{GRID}"/>')
+        p.append(f'<text x="{x0 - 6}" y="{y + 4:.0f}" font-size="10.5" text-anchor="end" fill="#94a3b8">{t}%</text>')
+    step = 820 / (len(stages) - 1)
+    xs = [x0 + i * step for i in range(len(stages))]
+    split = (xs[9] + xs[10]) / 2
+    p.append(f'<rect x="{split:.0f}" y="{y0}" width="{x0 + 820 - split:.0f}" height="{y1 - y0}" fill="#1e293b" opacity="0.55"/>')
+    p.append(f'<line x1="{split:.0f}" y1="{y0}" x2="{split:.0f}" y2="{y1}" stroke="#64748b" stroke-dasharray="6 4"/>')
+    p.append(f'<text x="{split + 8:.0f}" y="{y0 + 16}" font-size="11" fill="#94a3b8">live config →</text>')
+    p.append(f'<text x="{split - 8:.0f}" y="{y0 + 16}" font-size="11" text-anchor="end" fill="#94a3b8">← N0 reference config</text>')
+    yv = lambda v: y1 - (v - vmin) / (vmax - vmin) * (y1 - y0)
+    for vals, other, colour in ((v3, v4, TEAL), (v4, v3, BLUE)):
+        for seg in (range(0, 10), range(10, 12)):
+            pts = " ".join(f"{xs[i]:.0f},{yv(vals[i]):.0f}" for i in seg)
+            p.append(f'<polyline points="{pts}" fill="none" stroke="{colour}" stroke-width="2.4"/>')
+        for i, v in enumerate(vals):
+            dy = -10 if v >= other[i] else 18   # the higher series labels above
+            p.append(f'<circle cx="{xs[i]:.0f}" cy="{yv(v):.0f}" r="4" fill="{colour}"/>')
+            p.append(f'<text x="{xs[i]:.0f}" y="{yv(v) + dy:.0f}" font-size="10" text-anchor="middle" fill="{colour}">{v}</text>')
+    for i, s_ in enumerate(stages):
+        p.append(f'<text x="{xs[i]:.0f}" y="{y1 + 20}" font-size="13" font-weight="bold" text-anchor="middle" fill="{INK}">{s_}</text>')
+        p.append(f'<text x="{xs[i]:.0f}" y="{y1 + 36}" font-size="9.5" text-anchor="end" fill="#94a3b8" '
+                 f'transform="rotate(-28 {xs[i]:.0f} {y1 + 36})">{notes[s_]}</text>')
+    for k, (colour, lab) in enumerate(((TEAL, "3.avi"), (BLUE, "4.avi"))):
+        p.append(f'<rect x="{x0 + 10 + k * 90}" y="{y0 + 6}" width="12" height="12" fill="{colour}"/>')
+        p.append(f'<text x="{x0 + 28 + k * 90}" y="{y0 + 17}" font-size="11.5" fill="{INK}">{lab}</text>')
+    close_svg(p, "tuning_history.svg")
+
+
+# --------------------------------------------------------- DPS trade-off
+def dps_tradeoff():
+    # docs/studies/dps_sweep.md: mean of the two videos; DPS = hits/s x 10 HP
+    knobs = [
+        ("max_fire_facing (°)", AMBER, [(27, 69.0, 99.0), (30, 68.15, 103.5), (33, 67.45, 107.5), (36, 67.1, 111.5), (39, 66.2, 114.5)]),
+        ("side_angle (°)", TEAL, [(15, 66.85, 107.0), (20, 68.15, 103.5), (25, 69.0, 98.5), (30, 70.4, 93.5)]),
+        ("max_match_distance (m)", BLUE, [(0.25, 69.45, 91.5), (0.35, 68.15, 103.5), (0.45, 67.3, 104.5)]),
+    ]
+    W, H, x0, y0, y1 = 920, 500, 80, 80, 420
+    xmin, xmax, ymin, ymax = 88.0, 118.0, 65.0, 71.0
+    p = open_svg(W, H, "Hit rate vs damage per second: the fire-control trade-off",
+                 "docs/studies/dps_sweep.md, mean of both videos (N0). Each line sweeps one knob; the ringed point is the shipped value, shared by all three sweeps.")
+    X = lambda v: x0 + (v - xmin) / (xmax - xmin) * 800
+    Y = lambda v: y1 - (v - ymin) / (ymax - ymin) * (y1 - y0)
+    for t in range(65, 72):
+        p.append(f'<line x1="{x0}" y1="{Y(t):.0f}" x2="{x0 + 800}" y2="{Y(t):.0f}" stroke="{GRID}"/>')
+        p.append(f'<text x="{x0 - 6}" y="{Y(t) + 4:.0f}" font-size="10.5" text-anchor="end" fill="#94a3b8">{t}%</text>')
+    for t in range(90, 120, 5):
+        p.append(f'<line x1="{X(t):.0f}" y1="{y0}" x2="{X(t):.0f}" y2="{y1}" stroke="{GRID}"/>')
+        p.append(f'<text x="{X(t):.0f}" y="{y1 + 18}" font-size="10.5" text-anchor="middle" fill="#94a3b8">{t}</text>')
+    p.append(f'<text x="{x0 + 400}" y="{y1 + 40}" font-size="11.5" text-anchor="middle" fill="{INK}">DPS (HP per second, 17 mm = 10 HP per hit) →  more damage</text>')
+    p.append(f'<text x="{x0 - 52}" y="{(y0 + y1) / 2:.0f}" font-size="11.5" text-anchor="middle" fill="{INK}" '
+             f'transform="rotate(-90 {x0 - 52} {(y0 + y1) / 2:.0f})">hit rate (conditional) →  fewer wasted shots</text>')
+    for label, colour, pts in knobs:
+        poly = " ".join(f"{X(d):.0f},{Y(h):.0f}" for _, h, d in pts)
+        p.append(f'<polyline points="{poly}" fill="none" stroke="{colour}" stroke-width="2.2"/>')
+        left = colour == TEAL                   # side_angle labels go left of the points
+        for v, h, d in pts:
+            p.append(f'<circle cx="{X(d):.0f}" cy="{Y(h):.0f}" r="4.5" fill="{colour}"/>')
+            if d == 103.5:
+                continue                        # shared shipped point: labelled once below
+            lx, anchor = (X(d) - 8, "end") if left else (X(d) + 8, "start")
+            p.append(f'<text x="{lx:.0f}" y="{Y(h) - 7:.0f}" font-size="10" text-anchor="{anchor}" fill="{colour}">{v}</text>')
+    p.append(f'<circle cx="{X(103.5):.0f}" cy="{Y(68.15):.0f}" r="10" fill="none" stroke="{INK}" stroke-width="2"/>')
+    p.append(f'<text x="{X(103.5) + 16:.0f}" y="{Y(68.15) - 16:.0f}" font-size="11" fill="{INK}">shipped: 30° / 20° / 0.35 m</text>')
+    for k, (label, colour, _) in enumerate(knobs):
+        p.append(f'<rect x="{x0 + 470}" y="{y0 + 8 + k * 20}" width="12" height="12" fill="{colour}"/>')
+        p.append(f'<text x="{x0 + 488}" y="{y0 + 19 + k * 20}" font-size="11.5" fill="{INK}">{label}</text>')
+    close_svg(p, "dps_tradeoff.svg")
+
+
+# ------------------------------------------------------- tracker state
+def tracker_state():
+    # data/eval_cache/<v>/v<v>_n0_track.csv: estimated spin rate w per frame
+    import csv
+    cache = os.path.join(os.path.dirname(__file__), "..", "data", "eval_cache")
+    W, H, x0 = 920, 560, 70
+    p = open_svg(W, H, "What the tracker believes: estimated spin rate ω over time (rad/s)",
+                 "Per-frame tracker state of the frozen N0 runs (data/eval_cache/*/v*_n0_track.csv), 1 point per 5 frames. Grey ticks: frames without a confirmed track.")
+    for v, colour, y0, y1, vmax in (("3", TEAL, 96, 268, 6.0), ("4", BLUE, 336, 508, 12.0)):
+        with open(os.path.join(cache, v, f"v{v}_n0_track.csv")) as f:
+            rows = list(csv.DictReader(f))
+        n = len(rows)
+        ymid = (y0 + y1) / 2
+        Y = lambda w: ymid - w / vmax * (y1 - y0) / 2
+        for t in (-vmax, -vmax / 2, 0, vmax / 2, vmax):
+            p.append(f'<line x1="{x0}" y1="{Y(t):.0f}" x2="{x0 + 820}" y2="{Y(t):.0f}" stroke="{GRID if t else "#475569"}"/>')
+            p.append(f'<text x="{x0 - 6}" y="{Y(t) + 4:.0f}" font-size="10.5" text-anchor="end" fill="#94a3b8">{t:g}</text>')
+        for i, r in enumerate(rows):
+            if r["state"] != "TRACKING" and i % 2 == 0:
+                x = x0 + i / (n - 1) * 820
+                p.append(f'<line x1="{x:.1f}" y1="{y1 - 6}" x2="{x:.1f}" y2="{y1}" stroke="#64748b"/>')
+        pts = " ".join(f"{x0 + i / (n - 1) * 820:.1f},{Y(float(r['w'])):.1f}"
+                       for i, r in enumerate(rows) if i % 5 == 0 and r["state"] == "TRACKING")
+        p.append(f'<polyline points="{pts}" fill="none" stroke="{colour}" stroke-width="1.6"/>')
+        desc = "reverses spin repeatedly, stops for the final approach" if v == "3" else "steady ≈ 8.3 rad/s spin"
+        p.append(f'<text x="{x0}" y="{y0 - 8}" font-size="12.5" font-weight="bold" fill="{INK}">{v}.avi</text>')
+        p.append(f'<text x="{x0 + 46}" y="{y0 - 8}" font-size="11.5" fill="#94a3b8">{desc}; {n} frames = {n / 25:.0f} s</text>')
+    p.append(f'<text x="{x0 + 410}" y="548" font-size="11" text-anchor="middle" fill="#94a3b8">time (25 fps)</text>')
+    close_svg(p, "tracker_state.svg")
+
+
 
 if __name__ == "__main__":
     hit_rates()
@@ -585,3 +702,6 @@ if __name__ == "__main__":
     roi_windows()
     ballistics_curves()
     usb_bandwidth()
+    tuning_history()
+    dps_tradeoff()
+    tracker_state()
