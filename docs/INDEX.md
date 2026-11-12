@@ -11,6 +11,7 @@
 | 路径 | 标注 |
 |---|---|
 | `README.md` | 仓库入口：定位、构建、目录表摘要、状态（居中标志 + 语言选择头） |
+| `CONTRIBUTING.md` | 贡献指南：依赖方向、命名、代码规则、构建测试、评测口径与文档纪律 |
 | `README.zh-CN.md` | README 的简体中文版（与英文版同源同数据，顶部可互跳） |
 | `CLAUDE.md` | Claude Code 的仓库级指令（基线、约定、红线） |
 | `BASELINE.md` | 冻结回归基线与复现命令（回归门禁以此为准） |
@@ -41,7 +42,7 @@
 
 | 目录 | 文件数 | 标注 |
 |---|---|---|
-| `docs/` | 73 | 全部设计/审查/调参文档（见下方 docs 分类表） |
+| `docs/` | 74 | 全部设计/审查/调参文档（见下方 docs 分类表） |
 | `docs/charts/` | 17 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
 | `docs/assets/` | 1 | 仓库标志 logo.svg（README 顶部居中展示） |
 | `docs/decisions/` | 3 | 架构决策记录 ADR-001 共享核心 / ADR-002 整车 EKF / ADR-003 CameraSource 与曝光戳 |
@@ -51,7 +52,8 @@
 
 ### docs/ 分类表
 
-- **设计**：timestamp_design、attitude_timestamp_alignment、timestamp_alignment、
+- **设计**：api_overview（公共 API 速览：两条流水线入口与语义约定）、
+  timestamp_design、attitude_timestamp_alignment、timestamp_alignment、
   device_id_and_crc、bullet_speed、yolo_keypoints_plan、multi_target、roi_detection
 - **审查与加固**：full_audit_2026-11、review_2026-11、review_2026-11_round2、
   review_response、core_hardening_port、hardening、code_review_improvements、
@@ -118,7 +120,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 363 个（`git ls-files`）；迁移审计的 269 个是历史快照。
+当前跟踪文件 365 个（`git ls-files`）；迁移审计的 269 个是历史快照。
 其后新增：离线参考配置与三份审查/视频/诊断报告（4 个）、英文 README 与
 CI 改版等同数替换，以及 2026-11-10 数据整合轮新增的 `data/eval_cache/`
 （39 个：检测缓存去重后每视频一份 + 全部评测原始输出）。
