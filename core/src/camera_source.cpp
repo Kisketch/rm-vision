@@ -91,6 +91,21 @@ std::string mvError(const char* what, int code) {
     return buf;
 }
 
+// The pixel formats grab() below can convert, with their SDK enum names.
+// Kept next to the conversion switch so the two lists cannot drift apart
+// unnoticed: open() refuses to start on any format not in this table.
+struct PixelFormatEntry {
+    const char* name;
+    unsigned type;
+};
+const PixelFormatEntry kPixelFormats[] = {
+    {"Gvsp_Mono8", PixelType_Gvsp_Mono8},
+    {"Gvsp_BayerRG8", PixelType_Gvsp_BayerRG8},
+    {"Gvsp_RGB8_Packed", PixelType_Gvsp_RGB8_Packed},
+    {"Gvsp_BGR8_Packed", PixelType_Gvsp_BGR8_Packed},
+    {"Gvsp_YUV422_Packed", PixelType_Gvsp_YUV422_Packed},
+};
+
 }  // namespace
 
 class MvsSource::Impl {
@@ -152,6 +167,34 @@ public:
         ret = MV_CC_GetFloatValue(handle, "ExposureTime", &expv);
         if (ret != MV_OK) throw std::runtime_error(mvError("GetExposureTime(readback)", ret));
         exposure_us_actual = expv.fCurValue;
+
+        // Pixel format is load-bearing like the exposure: grab() only converts
+        // the formats in kPixelFormats, and an unsupported one used to end the
+        // whole program on the first frame (grab returns false = end of stream).
+        // Pin it when configured, then read back what the camera actually runs
+        // and refuse to start on anything the conversion path cannot handle.
+        if (!cfg.pixel_format.empty()) {
+            std::string name = cfg.pixel_format;
+            if (name.rfind("Gvsp_", 0) != 0) name = "Gvsp_" + name;
+            bool known = false;
+            for (const auto& f : kPixelFormats) known = known || f.name == name;
+            if (!known)
+                throw std::runtime_error("MVS: unsupported pixel_format '" + cfg.pixel_format +
+                                         "' (use Mono8, BayerRG8, RGB8_Packed, BGR8_Packed or YUV422_Packed)");
+            set("SetPixelFormat", MV_CC_SetEnumValueByString(handle, "PixelFormat", name.c_str()));
+        }
+        MVCC_ENUMVALUE pf{};
+        ret = MV_CC_GetEnumValue(handle, "PixelFormat", &pf);
+        if (ret != MV_OK) throw std::runtime_error(mvError("GetPixelFormat(readback)", ret));
+        const char* pf_name = nullptr;
+        for (const auto& f : kPixelFormats)
+            if (static_cast<unsigned>(f.type) == pf.nCurValue) pf_name = f.name;
+        if (!pf_name)
+            throw std::runtime_error(
+                "MVS: camera reports a pixel format the grab path cannot convert (enum " +
+                std::to_string(pf.nCurValue) +
+                "); set MvsConfig::pixel_format to Mono8, BayerRG8, RGB8_Packed, BGR8_Packed or YUV422_Packed");
+        std::fprintf(stderr, "MvsSource: pixel format %s\n", pf_name);
 
         // A wrong tick frequency is worse than a wrong offset: the time
         // SCALE breaks and the error grows for as long as the camera runs.
@@ -242,6 +285,10 @@ bool MvsSource::grab(SourceFrame& out) {
             cv::cvtColor(cv::Mat(h, w, CV_8UC2, frame.pBufAddr), out.image, cv::COLOR_YUV2BGR_Y422);
             break;
         default:
+            // open() pins and validates the format, so this is unreachable
+            // unless something external reconfigured the camera mid-stream.
+            std::fprintf(stderr, "MvsSource: unsupported pixel type %u mid-stream\n",
+                         static_cast<unsigned>(info.enPixelType));
             ok = false;  // add a ConvertPixelType path if the camera is set to another format
             break;
     }

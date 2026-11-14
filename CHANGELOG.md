@@ -4,6 +4,32 @@
 > 合并后也记录全仓级变更，但不追求完整——全仓变更以 git 提交历史与
 > docs/ 下各轮审查文档（如 docs/reviews/engineering_review_r6.md）为准。
 
+## 2026-11-14 — MVS 像素格式启动期固定 + 硬件集成前深度复检
+
+- **M1 修复**（[deep_recheck](docs/reviews/deep_recheck_2026-11-14.md)）：
+  `MvsSource::open()` 原先不设置 PixelFormat，相机若处于转换列表外的格式
+  （出厂默认或被 MVS 客户端改过），第一帧就让整个程序退出。现新增
+  `MvsConfig::pixel_format`（默认空 = 保持相机持久格式），open() 固定并回读，
+  不在 Mono8 / BayerRG8 / RGB8_Packed / BGR8_Packed / YUV422_Packed 列表内
+  即启动期报错，与曝光回读同等处理；grab() 的 default 分支补错误日志。
+  验证：非 MVS 构建 0 警告 + ctest 5/5；MVS 分支桩 SDK 编译 0 警告 +
+  sentry_robot 冒烟（桩仅编译用，真实 SDK ABI 核对仍是上车待验项）。
+- **深度复检**：ASan+UBSan 全链路（ctest、两视频全片重检、仿真、哨兵冒烟）
+  0 发现；7 组压力测试无崩溃、方向与 FIELD_CONDITIONS 一致；硬件边界逐文件
+  审查，CLAUDE.md 18 条硬约定守卫逐条核验在位；发射安全链五层核验。
+  M2（MCU 超时失效保护）为硬件端契约项，已写入 DEPLOY_IT13。
+- **M3 修复（22.04 部署验证发现）**：tests/test_regression_gate.py 用了
+  `contextlib.chdir`（Python 3.11+），IT13 目标机 Ubuntu 22.04 的 3.10
+  必挂。增加 3.10 兼容回退（3.11+ 行为不变），22.04 / 3.10 与 26.04 / 3.14
+  均 ctest 5/5。
+- **22.04 目标环境实测**（GCC 11.4 / OpenCV 4.5.4 / CMake 3.22 / Python 3.10
+  容器）：构建 0 警告；12 项冻结指标逐项偏差 0.0，两套门禁 PASS；N0 检测
+  缓存与发布版 MD5 逐字节一致——静态审计担心的 dnn 算子与 MJPEG 解码两条
+  运行时路径解除，4.5.4 可直接用。见 docs/deploy/ubuntu2204_compat.md。
+- **DEPLOY_IT13 更新**：ctest 两项→五项；systemd 示例旧仓路径 rm-vision →
+  robot-vision-aim、--camera 0 → --mvs、去掉无头运行不需要的 DISPLAY；
+  补像素格式、MCU 失效保护与 22.04 实测说明。
+
 ## 2026-11-12 — README 视觉化：示意图、真实画面、数据图与语言润色
 
 README 从"大段文字 + 少量图"改成"每个机制配一张图、每张数据表配一张图"，中英两版

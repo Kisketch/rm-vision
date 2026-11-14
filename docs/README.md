@@ -24,7 +24,7 @@ catalogue is [`INDEX.md`](INDEX.md), and the frozen numbers live in
 | [`studies/`](studies/) | 28 | 每个参数/方案怎么选的：A/B、消融、扫描、压力测试、被否决的方案 | [`split_light_merge.md`](studies/split_light_merge.md)、[`miss_analysis.md`](studies/miss_analysis.md) |
 | [`calibration/`](calibration/) | 5 | 相机与实测：内参、畸变顺序、相机硬件、上车试机清单 | [`on_robot_trial_checklist.md`](calibration/on_robot_trial_checklist.md) |
 | [`deploy/`](deploy/) | 3 | 上车跑什么、怎么装：部署地图、目标机、Ubuntu 兼容 | [`deployment_map.md`](deploy/deployment_map.md) |
-| [`reviews/`](reviews/) | 12 | 历轮代码审查、加固与审计的逐条处置 | [`engineering_review_r6.md`](reviews/engineering_review_r6.md) |
+| [`reviews/`](reviews/) | 13 | 历轮代码审查、加固与审计的逐条处置 | [`engineering_review_r6.md`](reviews/engineering_review_r6.md) |
 | [`project/`](project/) | 13 | 项目史与盘点：单仓合并、相对旧代码的改动、待办、进度 | [`changes_vs_legacy.md`](project/changes_vs_legacy.md) |
 | [`decisions/`](decisions/) | 3 | 架构决策记录（ADR） | — |
 | [`charts/`](charts/) | 20 | 数据图表 SVG（`tools/make_charts.py` 生成） | — |

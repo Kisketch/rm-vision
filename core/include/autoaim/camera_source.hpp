@@ -99,6 +99,14 @@ struct MvsConfig {
     // hardware stamps scaled by a guessed frequency drift without bound.
     // Set this only to a value verified for the exact camera model.
     double tick_freq_override = 0.0;
+    // Pixel format pinned at open() and read back, like the exposure: the
+    // grab path only converts a fixed set of formats, and a camera left in
+    // any other format (factory default, or changed by the MVS client) used
+    // to end the whole program on the first frame.  Empty = keep the camera's
+    // persisted format, but it must be one of Mono8, BayerRG8, RGB8_Packed,
+    // BGR8_Packed, YUV422_Packed or open() refuses to start.  A non-empty
+    // value must be one of those five names (Gvsp_ prefix optional).
+    std::string pixel_format;
 };
 
 class MvsSource : public CameraSource {

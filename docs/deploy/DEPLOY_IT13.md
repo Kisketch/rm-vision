@@ -16,6 +16,10 @@ sudo apt install -y build-essential cmake pkg-config libopencv-dev \
 
 - Ubuntu 22.04 自带 OpenCV 4.5.x 可用；建议 4.8–4.10（与开发机一致）。检查：
   `pkg-config --modversion opencv4`。
+  **2026-11-14 已实测**：22.04 容器（GCC 11.4 / OpenCV 4.5.4 / Python 3.10）
+  构建 0 警告、ctest 5/5、12 项冻结指标零偏差、检测缓存与发布版 MD5 逐字节
+  一致——4.5.4 可直接用，不必升级。详见
+  [ubuntu2204_compat](ubuntu2204_compat.md)（含一处 Python 3.10 测试兼容修复）。
 - MVS SDK：安装海康 `MVS-xxx.x86_64.deb`，默认 `/opt/MVS`。确认
   `ls /opt/MVS/include/MvCameraControl.h`。
 - 串口权限：`sudo usermod -aG dialout $USER`，重新登录；`ls -l /dev/ttyACM0`。
@@ -122,6 +126,18 @@ MVS 相机已内置：`sentry_robot --mvs` 走 core 的 `MvsSource`
 桩编译验证，上车前先核对目标机的 SDK 版本/ABI。旧 `io/hikrobot.*`
 驱动保留在 `legacy/` 中，仅作参考，不再需要移植。
 
+**像素格式（2026-11-14 起启动期固定）**：`MvsSource::open()` 现在按
+`MvsConfig::pixel_format` 设置并回读 PixelFormat；默认空 = 保持相机持久
+格式，但回读值必须在转换列表（Mono8 / BayerRG8 / RGB8_Packed /
+BGR8_Packed / YUV422_Packed）内，否则**启动期报错**而不是采流后退出。
+上车前用 MVS 客户端确认相机持久格式在列表内（队伍相机为 BayerRG8），
+或在代码里给 `mc.pixel_format` 显式赋值。
+
+**MCU 超时失效（硬件端必做）**：视觉端互锁（标定 fire=0、保持段 fire=0、
+退出发失效帧）不覆盖进程崩溃/断电。MCU 固件必须实现"一段时间收不到有效
+控制帧即停射"，联调时以拔视觉端进程用例验收。详见
+[深度复检](../reviews/deep_recheck_2026-11-14.md) M2。
+
 - `--comp-yaw/--comp-pitch` 是旧仓 `Transmit.compensate_*` 的等价物；先 0，实测偏置后再加。
 - 程序内 `HoldFound 0.5 s`：目标短暂丢失时保持上一帧角度，但**不发火**。
 - 串口 21 B 帧：`AA BB [yaw][pitch][yaw_vel][ui_x] found fire BB`，
@@ -140,12 +156,13 @@ After=network.target
 [Service]
 Type=simple
 User=lgnatius
-WorkingDirectory=/home/lgnatius/rm-vision
-ExecStart=/home/lgnatius/rm-vision/build/sentry/sentry_robot \
-  --camera 0 --serial /dev/ttyACM0 --config sentry/config/sentry.yaml
+WorkingDirectory=/home/lgnatius/robot-vision-aim
+ExecStart=/home/lgnatius/robot-vision-aim/build/sentry/sentry_robot \
+  --mvs --serial /dev/ttyACM0 --config sentry/config/sentry.yaml
 Restart=always
 RestartSec=2
-Environment=DISPLAY=:0
+# 无头运行不要加 --render（imshow 需要 DISPLAY）；Restart=always 覆盖
+# 相机掉线等硬错误退出，但 MCU 侧仍须有"收不到控制帧即停射"的超时失效。
 
 [Install]
 WantedBy=multi-user.target
@@ -173,7 +190,7 @@ journalctl -u sentry-vision -f
 
 ## 6. 上车前检查表
 
-- [ ] `ctest` 两个测试全过；
+- [ ] `ctest` 五项全过（core / sentry / serial PTY / 回归门契约 / 头自包含）；
 - [ ] `sentry_offline` 在 3.avi/4.avi 上 locked > 95%，fire 帧数合理；
 - [ ] 相机内参重投影误差 < 0.5 px；
 - [ ] 云台 yaw=0/pitch=0 时，3 m 与 6 m 激光点与枪管重合；

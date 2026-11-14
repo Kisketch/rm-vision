@@ -12,6 +12,21 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import regression
 
+# contextlib.chdir is Python 3.11+; the IT13 target (Ubuntu 22.04) ships
+# Python 3.10, where this contract test must run too. Same semantics for
+# the single-threaded use here.
+if hasattr(contextlib, "chdir"):
+    _chdir = contextlib.chdir
+else:
+    @contextlib.contextmanager
+    def _chdir(path):
+        prev = os.getcwd()
+        os.chdir(path)
+        try:
+            yield
+        finally:
+            os.chdir(prev)
+
 
 class RegressionGateTest(unittest.TestCase):
     report = ("| robot EKF (whole-robot model) | sample | 67.5% | 10.6 |\n"
@@ -22,7 +37,7 @@ class RegressionGateTest(unittest.TestCase):
                  "duplicate row", "missing report", "stale report", "malformed report",
                  "failed video", "metric regression")
         for case in cases:
-            with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp, contextlib.chdir(tmp):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp, _chdir(tmp):
                 video = Path("video/3.avi")
                 video.parent.mkdir()
                 video.touch()

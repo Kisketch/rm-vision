@@ -47,7 +47,7 @@
 | `docs/studies/` | 28 | 研究：A/B、消融、扫描、压力测试、否决方案 |
 | `docs/calibration/` | 5 | 标定与实测 |
 | `docs/deploy/` | 3 | 部署与目标机 |
-| `docs/reviews/` | 12 | 审查、加固与审计 |
+| `docs/reviews/` | 13 | 审查、加固与审计 |
 | `docs/project/` | 13 | 项目史与盘点（含设计档案页 design_archive.html） |
 | `docs/charts/` | 20 | 数据图表（SVG，tools/make_charts.py 生成，见 performance_charts） |
 | `docs/diagrams/` | 3 | 原理示意图（流水线、曝光时刻对齐、整车模型；SVG，tools/make_diagrams.py 生成） |
@@ -100,7 +100,9 @@
   code_review_fixes_r3（第三轮源码级审查的九项处置：预测协方差补过程噪声并附
   门控 A/B、迭代收敛判定与普查、Yaw NIS 帧聚合、过期观测拒绝、PnP 误差回退、
   MVS 频率/读回/超时三修、贪心关联按实测标准暂缓）、
-  completeness_audit_2026-11（迁移时完整性审计）
+  completeness_audit_2026-11（迁移时完整性审计）、
+  deep_recheck_2026-11-14（硬件集成前深度复检：ASan+UBSan 全链路 0 发现、7 组压力测试、
+  硬件边界逐文件审查与 18 条硬约定核验；M1 像素格式启动期固定已修复，M2 MCU 超时失效为硬件契约项）
 - **项目史与盘点（`project/`）**：
   changes_vs_legacy（相对老代码的改动总览：11 类改动逐项说明作用与证据，含已否决方案清单）、
   design_archive.html（设计档案总览页，浏览器直接打开；数字以 BASELINE.md 为准）、
@@ -137,7 +139,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 379 个（`git ls-files`，2026-11-14 新增独立复现研究 1 篇后复核；上次为 2026-11-12 README 视觉化：新增 3 张数据图、3 张示意图、2 张真实画面图与 2 个生成脚本）；迁移审计的 269 个是历史快照。
+当前跟踪文件 380 个（`git ls-files`，2026-11-14 新增独立复现研究与深度复检 2 篇后复核；上次为 2026-11-12 README 视觉化：新增 3 张数据图、3 张示意图、2 张真实画面图与 2 个生成脚本）；迁移审计的 269 个是历史快照。
 2026-11-11：`docs/` 74 篇平铺文档按用途移入 `design/ studies/ calibration/ deploy/ reviews/ project/`
 （只移动不改名，全仓链接逐个重算，链接检查 0 失效），新增 `docs/README.md`、
 `studies/split_light_merge.md` 与一张对比图。
