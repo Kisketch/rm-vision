@@ -44,7 +44,7 @@
 |---|---|---|
 | `docs/`（根） | 5 | 入口页：本索引、`README.md`（目录导航）、`api_overview`、`parameters`、`performance_charts` |
 | `docs/design/` | 9 | 设计：为什么这样设计 |
-| `docs/studies/` | 27 | 研究：A/B、消融、扫描、压力测试、否决方案 |
+| `docs/studies/` | 28 | 研究：A/B、消融、扫描、压力测试、否决方案 |
 | `docs/calibration/` | 5 | 标定与实测 |
 | `docs/deploy/` | 3 | 部署与目标机 |
 | `docs/reviews/` | 12 | 审查、加固与审计 |
@@ -81,7 +81,9 @@
   - 开火与命中：fire_window、impact_margin、dps_sweep、hit_by_range、hit_by_omega、
     miss_analysis、failure_modes、gimbal_ff（已否决方案记录）
   - 参数与条件：parameter_sensitivity、parameter_interaction、fps_ablation、fx_sensitivity、
-    FIELD_CONDITIONS_2026-11-11（遮挡/掉帧/降采样/抖动/延迟压力矩阵）、VIDEO_TEST_2026-11-10（用户视频复测）
+    FIELD_CONDITIONS_2026-11-11（遮挡/掉帧/降采样/抖动/延迟压力矩阵）、VIDEO_TEST_2026-11-10（用户视频复测）、
+    independent_reproduction_2026-11-14（独立复现验证：GCC 15.2 / OpenCV 4.10 / Ubuntu 26.04 全量重检，
+    12 项冻结指标逐项偏差 0.0，灯条修复 +14 帧断言精确成立；检测几何零差异，仅分类器置信度 float 末位差 ≤6×10⁻⁷）
   - 性能：optimization、optimization_round2
 - **标定与实测（`calibration/`）**：distortion_order、MEASUREMENTS、on_robot_trial_checklist（上车试机清单）、
   calibration_record_template（标定档案模板：重标定必须存原始图像/工具输出/重投影误差，不只留五个数字）、
@@ -135,7 +137,7 @@
 
 ## 本轮合并完整性复核（2026-11-10）
 
-当前跟踪文件 378 个（`git ls-files`，2026-11-12 README 视觉化后复核：新增 3 张数据图、3 张示意图、2 张真实画面图与 2 个生成脚本）；迁移审计的 269 个是历史快照。
+当前跟踪文件 379 个（`git ls-files`，2026-11-14 新增独立复现研究 1 篇后复核；上次为 2026-11-12 README 视觉化：新增 3 张数据图、3 张示意图、2 张真实画面图与 2 个生成脚本）；迁移审计的 269 个是历史快照。
 2026-11-11：`docs/` 74 篇平铺文档按用途移入 `design/ studies/ calibration/ deploy/ reviews/ project/`
 （只移动不改名，全仓链接逐个重算，链接检查 0 失效），新增 `docs/README.md`、
 `studies/split_light_merge.md` 与一张对比图。

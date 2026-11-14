@@ -41,7 +41,7 @@ ctest --test-dir build        # 三套单元/集成测试
 
 源码对照：[MVS 默认配置](../../core/include/autoaim/camera_source.hpp)、[MVS 与 V4L2 采集](../../core/src/camera_source.cpp)、[旧版海康初始化](../../legacy/io/src/hikrobot.cpp)。
 
-## 全仓目录（2026-11-12 校验，378 个跟踪文件）
+## 全仓目录（2026-11-14 校验，379 个跟踪文件）
 
 | 目录 | 文件数 | 内容 |
 |---|---|---|
@@ -49,7 +49,7 @@ ctest --test-dir build        # 三套单元/集成测试
 | `sentry/` | 23 | 哨兵模块：库、主程序、串口、配置、旧代码对比台架（`sentry/tools/`，非产品构建） |
 | `apps/` | 5 | 离线程序：`autoaim_video`（评测）、`autoaim_sim`（仿真）、`autoaim_lights`、`detector_bench` |
 | `tests/` | 17 | CTest 五项：core（按模块拆分）/ 哨兵 / 串口 / 回归门契约 / 头文件自包含 |
-| `docs/` | 114 | 按用途分目录（见 `docs/README.md`）：入口页 5、`design/` 9、`studies/` 27、`calibration/` 5、`deploy/` 3、`reviews/` 12、`project/` 13（含设计档案页）、`charts/` 20、`diagrams/` 3、`figures/` 2、`detections/` 11、`decisions/` 3、`assets/` 1 |
+| `docs/` | 115 | 按用途分目录（见 `docs/README.md`）：入口页 5、`design/` 9、`studies/` 28、`calibration/` 5、`deploy/` 3、`reviews/` 12、`project/` 13（含设计档案页）、`charts/` 20、`diagrams/` 3、`figures/` 2、`detections/` 11、`decisions/` 3、`assets/` 1 |
 | `data/` | 39 | 离线评测缓存（双视频检测缓存与分项结果） |
 | `tools/` | 42 | 回归门禁与离线评测脚本（含图表/示意图/画面图生成 make_charts.py、make_diagrams.py、make_figures.py） |
 | `reports/` | 12 | 汇总报告 + 真视频回归分项报告 |

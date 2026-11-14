@@ -21,7 +21,7 @@ catalogue is [`INDEX.md`](INDEX.md), and the frozen numbers live in
 | 目录 | 文件数 | 回答什么问题 | 先读 |
 |---|---|---|---|
 | [`design/`](design/) | 9 | 为什么这样设计：时间戳、身份、ROI、多目标、关键点后端 | [`timestamp_design.md`](design/timestamp_design.md) |
-| [`studies/`](studies/) | 27 | 每个参数/方案怎么选的：A/B、消融、扫描、压力测试、被否决的方案 | [`split_light_merge.md`](studies/split_light_merge.md)、[`miss_analysis.md`](studies/miss_analysis.md) |
+| [`studies/`](studies/) | 28 | 每个参数/方案怎么选的：A/B、消融、扫描、压力测试、被否决的方案 | [`split_light_merge.md`](studies/split_light_merge.md)、[`miss_analysis.md`](studies/miss_analysis.md) |
 | [`calibration/`](calibration/) | 5 | 相机与实测：内参、畸变顺序、相机硬件、上车试机清单 | [`on_robot_trial_checklist.md`](calibration/on_robot_trial_checklist.md) |
 | [`deploy/`](deploy/) | 3 | 上车跑什么、怎么装：部署地图、目标机、Ubuntu 兼容 | [`deployment_map.md`](deploy/deployment_map.md) |
 | [`reviews/`](reviews/) | 12 | 历轮代码审查、加固与审计的逐条处置 | [`engineering_review_r6.md`](reviews/engineering_review_r6.md) |
